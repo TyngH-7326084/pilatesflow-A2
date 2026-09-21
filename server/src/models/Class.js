@@ -12,6 +12,11 @@ const classSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // Tyng: new field, used going forward for real instructor linkage
+    instructor: { 
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Instructor",
+    },
     classDateTime: {
       type: Date,
       required: true,
