@@ -1,0 +1,9 @@
+$kind: http-request
+name: Login (Admin) http://localhost:3000/api/auth/login
+description: ""
+url: http://localhost:3000/api/auth/login
+method: POST
+body:
+  type: json
+  content: '{ "email": "admin@pilatesflow.com", "password": "AdminPass123" }'
+order: 1789983777832
