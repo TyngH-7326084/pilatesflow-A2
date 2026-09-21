@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import InstructorManagement from "../components/InstructorManagement";
+import MemberManagement from "../components/MemberManagement";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -141,6 +142,7 @@ export default function AdminDashboard() {
         </div>
 
         <InstructorManagement />
+        <MemberManagement />
       </div>
     </>
   );
