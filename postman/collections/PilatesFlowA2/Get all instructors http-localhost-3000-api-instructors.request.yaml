@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get all instructors http://localhost:3000/api/instructors
+description: ""
+url: http://localhost:3000/api/instructors
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 4475677247209149

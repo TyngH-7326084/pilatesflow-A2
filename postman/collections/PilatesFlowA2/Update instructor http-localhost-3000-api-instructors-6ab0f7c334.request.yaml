@@ -1,0 +1,13 @@
+$kind: http-request
+name: Update instructor http://localhost:3000/api/instructors/6ab0f7c334354925d2dab1c3
+description: ""
+url: http://localhost:3000/api/instructors/6ab0f7c334354925d2dab1c3
+method: PUT
+body:
+  type: json
+  content: '{ "bio": "Updated bio text" }'
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 4496608076902508
