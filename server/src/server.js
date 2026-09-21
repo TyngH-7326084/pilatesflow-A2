@@ -8,6 +8,7 @@ const classRoutes = require("./routes/classRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const bookingRoutes = require("./routes/bookingRoutes");
 const instructorRoutes = require("./routes/instructorRoutes")
+const memberRoutes = require("./routes/memberRoutes")
 
 const app = express();
 app.use(cors());
@@ -18,6 +19,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/classes", classRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/instructors", instructorRoutes);
+app.use("/api/members", memberRoutes);
 
 // Serve React build in production
 app.use(express.static(path.join(__dirname, "../../client/dist")));
