@@ -2,3 +2,5 @@ name: PilatesFlowA2
 values:
   - key: token
     secret: true
+  - key: baseUrl
+    value: ''
