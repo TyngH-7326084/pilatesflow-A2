@@ -96,10 +96,82 @@ async function deleteInstructor(req, res) {
   }
 }
 
+// ---- US1.2: Weekly availability ----
+ 
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/; // "HH:MM", 24-hour
+ 
+// POST /api/instructors/:id/availability  (Admin only)
+// AC: adding a slot persists; overlapping slots for the same instructor are rejected.
+async function addAvailability(req, res) {
+  const { dayOfWeek, startTime, endTime } = req.body;
+ 
+  const validDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  if (!dayOfWeek || !validDays.includes(dayOfWeek)) {
+    return res.status(400).json({ error: "A valid dayOfWeek is required." });
+  }
+  if (!startTime || !TIME_RE.test(startTime) || !endTime || !TIME_RE.test(endTime)) {
+    return res.status(400).json({ error: "startTime and endTime must be in HH:MM (24-hour) format." });
+  }
+  if (startTime >= endTime) {
+    return res.status(400).json({ error: "startTime must be before endTime." });
+  }
+ 
+  try {
+    const instructor = await Instructor.findById(req.params.id);
+    if (!instructor) {
+      return res.status(404).json({ error: "Instructor not found." });
+    }
+ 
+    // Overlap check: same day, and time ranges intersect.
+    // Two ranges [s1,e1) and [s2,e2) overlap if s1 < e2 AND s2 < e1.
+    const hasOverlap = instructor.availability.some(
+      (slot) =>
+        slot.dayOfWeek === dayOfWeek &&
+        startTime < slot.endTime &&
+        slot.startTime < endTime
+    );
+ 
+    if (hasOverlap) {
+      return res.status(400).json({
+        error: `This overlaps an existing availability slot on ${dayOfWeek}.`,
+      });
+    }
+ 
+    instructor.availability.push({ dayOfWeek, startTime, endTime });
+    const updated = await instructor.save();
+    return res.status(201).json(updated);
+  } catch (err) {
+    return res.status(500).json({ error: "Could not add availability slot." });
+  }
+}
+ 
+// DELETE /api/instructors/:id/availability/:slotId  (Admin only)
+async function removeAvailability(req, res) {
+  try {
+    const instructor = await Instructor.findById(req.params.id);
+    if (!instructor) {
+      return res.status(404).json({ error: "Instructor not found." });
+    }
+ 
+    const slot = instructor.availability.id(req.params.slotId);
+    if (!slot) {
+      return res.status(404).json({ error: "Availability slot not found." });
+    }
+ 
+    slot.deleteOne();
+    const updated = await instructor.save();
+    return res.json(updated);
+  } catch (err) {
+    return res.status(500).json({ error: "Could not remove availability slot." });
+  }
+}
+ 
 module.exports = {
   createInstructor,
   getInstructors,
   getInstructorById,
   updateInstructor,
   deleteInstructor,
+  addAvailability,
+  removeAvailability,
 };

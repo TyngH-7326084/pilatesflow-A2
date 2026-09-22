@@ -1,5 +1,6 @@
 $kind: http-request
-name: Delete instructor (blocked with upcoming class) http://localhost:3000/api/instructors/6ab0f92634354925d2dab1cb
+name: Delete instructor (blocked with upcoming class)
+  http://localhost:3000/api/instructors/6ab0f92634354925d2dab1cb
 description: ""
 url: http://localhost:3000/api/instructors/6ab0f92634354925d2dab1cb
 method: DELETE
@@ -7,4 +8,4 @@ auth:
   type: bearer
   credentials:
     token: "{{token}}"
-order: 4500611835855002
+order: 6000
