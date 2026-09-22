@@ -1,4 +1,11 @@
 $kind: http-request
-url: ""
-method: GET
+url: "{{baseUrl}}/instructors/6ab250e52d663646205a8409/availability"
+method: POST
+body:
+  type: json
+  content: '{ "dayOfWeek": "Wednesday", "startTime": "09:00", "endTime": "10:00" }'
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
 order: 8000

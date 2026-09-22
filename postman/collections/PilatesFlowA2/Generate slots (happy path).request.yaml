@@ -1,0 +1,11 @@
+$kind: http-request
+url: "{{baseUrl}}/instructors/6ab250e52d663646205a8409/generate-slots"
+method: POST
+body:
+  type: json
+  content: '{ "slotId": "6ab2516a2d663646205a8415", "className": "Reformer Basics", "capacity": 10, "startDate": "2026-09-28", "numberOfWeeks": 4 }'
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 2590723406826821
