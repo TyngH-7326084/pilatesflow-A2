@@ -1,4 +1,8 @@
 $kind: http-request
-url: ""
-method: GET
-order: 7414
+url: "{{baseUrl}}/instructors/6ab250e52d663646205a8409/availability/6ab253da2d663646205a845c"
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 2431358308435221

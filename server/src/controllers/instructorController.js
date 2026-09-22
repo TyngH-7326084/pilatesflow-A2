@@ -1,5 +1,6 @@
 const Instructor = require("../models/Instructor");
 const Class = require("../models/Class");
+const RecurrenceGeneratorFactory = require("../patterns/RecurrenceGeneratorFactory");
 
 // POST /api/instructors  (Admin only)
 async function createInstructor(req, res) {
@@ -166,6 +167,85 @@ async function removeAvailability(req, res) {
   }
 }
  
+// ---- US1.3: Recurring slot generation ----
+ 
+// POST /api/instructors/:id/generate-slots  (Admin only)
+// AC: given a start date and number of weeks, one class is created per
+// weekly occurrence; a slot clashing with an existing class for that
+// instructor at the exact same date/time is skipped and reported.
+async function generateSlots(req, res) {
+  const { slotId, className, capacity, startDate, numberOfWeeks } = req.body;
+ 
+  if (!slotId) {
+    return res.status(400).json({ error: "slotId is required." });
+  }
+  if (!className || !className.trim()) {
+    return res.status(400).json({ error: "className is required." });
+  }
+  const capacityNum = Number(capacity);
+  if (Number.isNaN(capacityNum) || capacityNum <= 0) {
+    return res.status(400).json({ error: "Capacity must be greater than zero." });
+  }
+  const parsedStart = new Date(startDate);
+  if (!startDate || Number.isNaN(parsedStart.getTime())) {
+    return res.status(400).json({ error: "A valid startDate is required." });
+  }
+  const weeksNum = Number(numberOfWeeks);
+  if (!Number.isInteger(weeksNum) || weeksNum <= 0 || weeksNum > 52) {
+    return res.status(400).json({ error: "numberOfWeeks must be a whole number between 1 and 52." });
+  }
+ 
+  try {
+    const instructor = await Instructor.findById(req.params.id);
+    if (!instructor) {
+      return res.status(404).json({ error: "Instructor not found." });
+    }
+ 
+    const availabilitySlot = instructor.availability.id(slotId);
+    if (!availabilitySlot) {
+      return res.status(404).json({ error: "Availability slot not found." });
+    }
+ 
+    const generator = RecurrenceGeneratorFactory.getGenerator("weekly");
+    const candidates = generator.generate({
+      instructor,
+      availabilitySlot,
+      className: className.trim(),
+      capacity: capacityNum,
+      startDate: parsedStart,
+      numberOfWeeks: weeksNum,
+    });
+ 
+    const created = [];
+    const skipped = [];
+ 
+    for (const candidate of candidates) {
+      const conflict = await Class.findOne({
+        instructor: instructor._id,
+        classDateTime: candidate.classDateTime,
+      });
+ 
+      if (conflict) {
+        skipped.push({
+          classDateTime: candidate.classDateTime,
+          reason: `Instructor already has a class at this exact date/time (conflicts with "${conflict.className}").`,
+        });
+        continue;
+      }
+ 
+      const newClass = await Class.create({
+        ...candidate,
+        createdBy: req.user.sub,
+      });
+      created.push(newClass);
+    }
+ 
+    return res.status(201).json({ created, skipped });
+  } catch (err) {
+    return res.status(500).json({ error: "Could not generate class slots." });
+  }
+}
+ 
 module.exports = {
   createInstructor,
   getInstructors,
@@ -174,4 +254,5 @@ module.exports = {
   deleteInstructor,
   addAvailability,
   removeAvailability,
+  generateSlots,
 };

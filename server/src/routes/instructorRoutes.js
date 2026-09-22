@@ -9,6 +9,7 @@ const {
   deleteInstructor,
   addAvailability,
   removeAvailability,
+  generateSlots,
 } = require('../controllers/instructorController');
 
 const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
@@ -28,5 +29,8 @@ router.route('/:id/availability')
  
 router.route('/:id/availability/:slotId')
   .delete(requireAuth, requireAdmin, asyncHandler(removeAvailability));
+
+router.route('/:id/generate-slots')
+  .post(requireAuth, requireAdmin, asyncHandler(generateSlots));
 
 module.exports = router;
