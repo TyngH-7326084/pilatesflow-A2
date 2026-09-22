@@ -1,0 +1,147 @@
+name: PilatesFlow CI/CD
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilatesflow-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  verify-and-package:
+    name: Verify and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Check server JavaScript syntax
+        working-directory: server
+        run: find src -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Run server tests when the test suite is available
+        working-directory: server
+        shell: bash
+        run: |
+          if node -e 'process.exit(require("./package.json").scripts?.test ? 0 : 1)'; then
+            npm test
+          else
+            echo "::notice title=Backend tests pending::No server test script exists yet. Feature test Jira items must add it before final assessment evidence is collected."
+          fi
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build production client
+        working-directory: client
+        run: npm run build
+
+      - name: Run client lint as a visible baseline check
+        continue-on-error: true
+        working-directory: client
+        run: npm run lint
+
+      - name: Package tested release
+        shell: bash
+        run: |
+          mkdir -p artifact
+          tar -czf "artifact/pilatesflow-${GITHUB_SHA}.tar.gz" \
+            client/dist \
+            server/src \
+            server/package.json \
+            server/package-lock.json \
+            ecosystem.config.cjs
+          cp .github/scripts/deploy-ec2.sh artifact/deploy-ec2.sh
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilatesflow-${{ github.sha }}
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    name: Deploy to two EC2 instances
+    needs: verify-and-package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Download tested release
+        uses: actions/download-artifact@v5
+        with:
+          name: pilatesflow-${{ github.sha }}
+          path: artifact
+
+      - name: Configure SSH
+        env:
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          test -n "$EC2_SSH_PRIVATE_KEY"
+          test -n "$EC2_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$EC2_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+      - name: Deploy and health-check both targets
+        env:
+          EC2_HOSTS: ${{ secrets.EC2_HOSTS }}
+          EC2_SSH_USER: ${{ secrets.EC2_SSH_USER }}
+          APP_ROOT: ${{ vars.EC2_APP_ROOT || '/var/www/pilatesflow-a2' }}
+          APP_PORT: ${{ vars.APP_PORT || '3000' }}
+        shell: bash
+        run: |
+          test -n "$EC2_HOSTS"
+          test -n "$EC2_SSH_USER"
+
+          IFS=',' read -r -a hosts <<< "$EC2_HOSTS"
+          if [[ "${#hosts[@]}" -ne 2 ]]; then
+            echo "EC2_HOSTS must contain exactly two comma-separated hosts." >&2
+            exit 1
+          fi
+
+          for host in "${hosts[@]}"; do
+            host="${host//[[:space:]]/}"
+            scp "artifact/pilatesflow-${GITHUB_SHA}.tar.gz" \
+              "$EC2_SSH_USER@$host:/tmp/pilatesflow-${GITHUB_SHA}.tar.gz"
+            ssh "$EC2_SSH_USER@$host" \
+              "bash -s -- '$GITHUB_SHA' '$APP_ROOT' '$APP_PORT'" \
+              < artifact/deploy-ec2.sh
+          done
+
+      - name: Record deployed revision
+        run: echo "Deployed ${GITHUB_SHA} to both EC2 targets."
