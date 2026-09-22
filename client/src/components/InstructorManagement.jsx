@@ -6,6 +6,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 const emptyForm = { name: "", bio: "", specialties: "" };
 const emptySlotForm = { dayOfWeek: "Monday", startTime: "", endTime: "" };
+const emptyGenerateForm = { className: "", capacity: "", startDate: "", numberOfWeeks: "" };
 
 export default function InstructorManagement() {
   const [instructors, setInstructors] = useState([]);
@@ -15,10 +16,17 @@ export default function InstructorManagement() {
   const [successMsg, setSuccessMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-// US1.2: which instructor's availability panel is currently open
+  // US1.2: which instructor's availability panel is currently open
   const [managingId, setManagingId] = useState(null);
   const [slotForm, setSlotForm] = useState(emptySlotForm);
   const [slotError, setSlotError] = useState("");
+
+  // US1.3: which slot's "generate classes" form is currently open, and its state
+  const [generatingSlotId, setGeneratingSlotId] = useState(null);
+  const [generateForm, setGenerateForm] = useState(emptyGenerateForm);
+  const [generateError, setGenerateError] = useState("");
+  const [generateResult, setGenerateResult] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
   const authHeaders = () => {
     const token = localStorage.getItem("token");
@@ -111,32 +119,33 @@ export default function InstructorManagement() {
       setSuccessMsg("Instructor deleted.");
       await loadInstructors();
     } catch (err) {
-      // Displays the "upcoming classes" guard message from the backend
       setError(err.response?.data?.error || "Failed to delete instructor.");
     }
   };
 
- // ---- US1.2: availability management ----
- 
+  // ---- US1.2: availability management ----
+
   const toggleAvailability = (id) => {
     setSlotError("");
     setSlotForm(emptySlotForm);
+    setGeneratingSlotId(null);
+    setGenerateResult(null);
     setManagingId(managingId === id ? null : id);
   };
- 
+
   const handleSlotChange = (e) => {
     setSlotForm({ ...slotForm, [e.target.name]: e.target.value });
   };
- 
+
   const handleAddSlot = async (e, instructorId) => {
     e.preventDefault();
     setSlotError("");
- 
+
     if (!slotForm.startTime || !slotForm.endTime) {
       setSlotError("Start and end time are required.");
       return;
     }
- 
+
     try {
       await axios.post(
         `${API}/api/instructors/${instructorId}/availability`,
@@ -149,7 +158,7 @@ export default function InstructorManagement() {
       setSlotError(err.response?.data?.error || "Could not add availability slot.");
     }
   };
- 
+
   const handleRemoveSlot = async (instructorId, slotId) => {
     setSlotError("");
     try {
@@ -160,6 +169,63 @@ export default function InstructorManagement() {
       await loadInstructors();
     } catch (err) {
       setSlotError(err.response?.data?.error || "Could not remove availability slot.");
+    }
+  };
+
+  // ---- US1.3: generate recurring classes from a slot ----
+
+  const toggleGenerateForm = (slotId) => {
+    setGenerateError("");
+    setGenerateResult(null);
+    setGenerateForm(emptyGenerateForm);
+    setGeneratingSlotId(generatingSlotId === slotId ? null : slotId);
+  };
+
+  const handleGenerateChange = (e) => {
+    setGenerateForm({ ...generateForm, [e.target.name]: e.target.value });
+  };
+
+  const handleGenerateSubmit = async (e, instructorId, slotId) => {
+    e.preventDefault();
+    setGenerateError("");
+    setGenerateResult(null);
+
+    if (!generateForm.className.trim()) {
+      setGenerateError("Class name is required.");
+      return;
+    }
+    if (!generateForm.capacity || Number(generateForm.capacity) <= 0) {
+      setGenerateError("Capacity must be greater than zero.");
+      return;
+    }
+    if (!generateForm.startDate) {
+      setGenerateError("Start date is required.");
+      return;
+    }
+    if (!generateForm.numberOfWeeks || Number(generateForm.numberOfWeeks) <= 0) {
+      setGenerateError("Number of weeks must be at least 1.");
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const { data } = await axios.post(
+        `${API}/api/instructors/${instructorId}/generate-slots`,
+        {
+          slotId,
+          className: generateForm.className.trim(),
+          capacity: Number(generateForm.capacity),
+          startDate: generateForm.startDate,
+          numberOfWeeks: Number(generateForm.numberOfWeeks),
+        },
+        authHeaders()
+      );
+      setGenerateResult(data);
+      setGenerateForm(emptyGenerateForm);
+    } catch (err) {
+      setGenerateError(err.response?.data?.error || "Could not generate classes.");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -242,18 +308,104 @@ export default function InstructorManagement() {
                   {instructor.availability?.length > 0 ? (
                     <ul className="class-list">
                       {instructor.availability.map((slot) => (
-                        <li key={slot._id} className="class-list-item">
-                          <span>
-                            {slot.dayOfWeek}: {slot.startTime}-{slot.endTime}
-                          </span>
-                          <div>
-                            <button
-                              onClick={() => handleRemoveSlot(instructor._id, slot._id)}
-                              className="btn-secondary"
-                            >
-                              Remove
-                            </button>
+                        <li key={slot._id} className="class-list-item" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>
+                              {slot.dayOfWeek}: {slot.startTime}–{slot.endTime}
+                            </span>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button
+                                onClick={() => toggleGenerateForm(slot._id)}
+                                className="btn-secondary"
+                              >
+                                {generatingSlotId === slot._id ? "Close" : "Generate Classes"}
+                              </button>
+                              <button
+                                onClick={() => handleRemoveSlot(instructor._id, slot._id)}
+                                className="btn-secondary"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
+
+                          {generatingSlotId === slot._id && (
+                            <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border)" }}>
+                              <form
+                                onSubmit={(e) => handleGenerateSubmit(e, instructor._id, slot._id)}
+                                className="auth-form"
+                              >
+                                <label htmlFor={`className-${slot._id}`}>Class Name</label>
+                                <input
+                                  id={`className-${slot._id}`}
+                                  name="className"
+                                  type="text"
+                                  value={generateForm.className}
+                                  onChange={handleGenerateChange}
+                                  placeholder="e.g. Reformer Basics"
+                                />
+
+                                <label htmlFor={`capacity-${slot._id}`}>Capacity</label>
+                                <input
+                                  id={`capacity-${slot._id}`}
+                                  name="capacity"
+                                  type="number"
+                                  min="1"
+                                  value={generateForm.capacity}
+                                  onChange={handleGenerateChange}
+                                  placeholder="e.g. 10"
+                                />
+
+                                <label htmlFor={`startDate-${slot._id}`}>Start Date</label>
+                                <input
+                                  id={`startDate-${slot._id}`}
+                                  name="startDate"
+                                  type="date"
+                                  value={generateForm.startDate}
+                                  onChange={handleGenerateChange}
+                                />
+
+                                <label htmlFor={`weeks-${slot._id}`}>Number of Weeks</label>
+                                <input
+                                  id={`weeks-${slot._id}`}
+                                  name="numberOfWeeks"
+                                  type="number"
+                                  min="1"
+                                  max="52"
+                                  value={generateForm.numberOfWeeks}
+                                  onChange={handleGenerateChange}
+                                  placeholder="e.g. 4"
+                                />
+
+                                {generateError && <p role="alert" className="auth-error">{generateError}</p>}
+
+                                <button type="submit" className="btn-primary" disabled={generating}>
+                                  {generating ? "Generating..." : "Generate"}
+                                </button>
+                              </form>
+
+                              {generateResult && (
+                                <div style={{ marginTop: "12px" }}>
+                                  <p className="success-banner">
+                                    {generateResult.created.length} class(es) created.
+                                    {generateResult.skipped.length > 0 &&
+                                      ` ${generateResult.skipped.length} skipped due to conflicts.`}
+                                  </p>
+                                  {generateResult.skipped.length > 0 && (
+                                    <ul className="class-list">
+                                      {generateResult.skipped.map((skip, i) => (
+                                        <li key={i} className="class-list-item">
+                                          <span className="class-meta">
+                                            {new Date(skip.classDateTime).toLocaleString()}: {skip.reason}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>
