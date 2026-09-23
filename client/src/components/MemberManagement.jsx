@@ -83,6 +83,20 @@ export default function MemberManagement() {
     }
   };
 
+  const handleDeactivate = async (member) => {
+    setError("");
+    setSuccessMsg("");
+    if (!window.confirm(`Deactivate ${member.name || member.email}?`)) return;
+
+    try {
+      await axios.patch(`${API}/api/members/${member._id}/deactivate`, {}, authHeaders());
+      setSuccessMsg("Member deactivated.");
+      await loadMembers();
+    } catch (err) {
+      setError(err.response?.data?.error || "Could not deactivate member.");
+    }
+  };
+
   const handleEdit = (member) => {
     setEditingId(member._id);
     setForm({
@@ -179,6 +193,11 @@ export default function MemberManagement() {
                 <button onClick={() => handleEdit(member)} className="btn-secondary">
                   Edit
                 </button>
+                {member.status === "active" && (
+                  <button onClick={() => handleDeactivate(member)} className="btn-secondary">
+                    Deactivate
+                  </button>
+                )}
               </div>
             </li>
           ))}

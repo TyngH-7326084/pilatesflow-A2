@@ -1,5 +1,6 @@
 const Booking = require("../models/Booking");
 const Class = require("../models/Class");
+const User = require("../models/User");
 
 // POST /api/bookings  (Member only, requireAuth)
 // US5 acceptance criteria: capacity check, duplicate check, success/error messaging
@@ -8,6 +9,12 @@ async function createBooking(req, res) {
 
   if (!classId) {
     return res.status(400).json({ error: "classId is required." });
+  }
+
+  // US2.3 AC: deactivated members are blocked from making new bookings.
+  const bookingUser = await User.findById(req.user.sub);
+  if (!bookingUser || bookingUser.status === "inactive") {
+    return res.status(403).json({ error: "Your account is deactivated." });
   }
 
   const targetClass = await Class.findById(classId);
