@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
@@ -10,12 +10,16 @@ const PASSWORD_RE = /^(?=.*\d).{8,}$/;
 export default function SignupLogin() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [mode, setMode] = useState(location.state?.mode || "signup");
+  const [authMessage] = useState(() => sessionStorage.getItem("authMessage") || "");
+  const [mode, setMode] = useState(location.state?.mode || (authMessage ? "login" : "signup"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(authMessage);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    sessionStorage.removeItem("authMessage");
+  }, []);
 
 
   const validate = () => {

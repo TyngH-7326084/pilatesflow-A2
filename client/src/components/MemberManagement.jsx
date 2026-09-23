@@ -3,7 +3,9 @@ import axios from "axios";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-const emptyForm = { name: "", email: "", tier: "basic", status: "active" };
+const TIER_LABELS = { basic: "Basic", premium: "Premium" };
+
+const emptyForm ={ name: "", email: "", tier: "basic", status: "active" };
 
 export default function MemberManagement() {
   const [members, setMembers] = useState([]);
@@ -147,8 +149,9 @@ export default function MemberManagement() {
 
           <label htmlFor="tier">Tier</label>
           <select id="tier" name="tier" value={form.tier} onChange={handleChange}>
-            <option value="basic">Basic</option>
-            <option value="premium">Premium</option>
+            {Object.entries(TIER_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
 
           <label htmlFor="status">Status</label>
@@ -186,7 +189,7 @@ export default function MemberManagement() {
               <div>
                 <strong>{member.name || "(no name)"}</strong>
                 <p className="class-meta">
-                  {member.email} · {member.tier} · {member.status}
+                  {member.email} · {TIER_LABELS[member.tier] || member.tier} · {member.status}
                 </p>
               </div>
               <div>

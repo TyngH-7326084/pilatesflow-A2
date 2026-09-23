@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const { TIERS } = User;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,7 +25,8 @@ async function getMembers(req, res) {
 
 // PUT /api/members/:id
 // Admin can edit any member. A member can edit their own record, but
-// cannot change their own tier (self-upgrade must not be possible).
+// cannot change their own tier or status (self-upgrade/reactivation must not be possible).
+// US2.4 AC: tier outside the allowed set -> 400; non-admin tier change -> 403, record unchanged.
 async function updateMember(req, res) {
   const { name, email, tier, status } = req.body;
 
@@ -33,6 +35,16 @@ async function updateMember(req, res) {
 
   if (!isAdmin && !isSelf) {
     return res.status(403).json({ error: "Not authorized to edit this member." });
+  }
+  if (tier !== undefined && !isAdmin) {
+    return res.status(403).json({ error: "Only an admin can change a member's tier." });
+  }
+  // A deactivated member must not be able to reactivate themselves (US2.3).
+  if (status !== undefined && !isAdmin) {
+    return res.status(403).json({ error: "Only an admin can change a member's status." });
+  }
+  if (tier !== undefined && !TIERS.includes(tier)) {
+    return res.status(400).json({ error: `Tier must be one of: ${TIERS.join(", ")}.` });
   }
 
   if (name !== undefined && !name.trim()) {
@@ -61,9 +73,7 @@ async function updateMember(req, res) {
 
     if (name !== undefined) member.name = name.trim();
     if (status !== undefined) member.status = status;
-
-    // Only an admin may change tier; a self-edit silently ignores it.
-    if (tier !== undefined && isAdmin) member.tier = tier;
+    if (tier !== undefined) member.tier = tier;
 
     const updated = await member.save();
     const { passwordHash, ...safeMember } = updated.toObject();

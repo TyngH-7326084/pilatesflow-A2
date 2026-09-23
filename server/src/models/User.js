@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
 
+// Allowed membership tiers — input to the F2 promotion Strategy.
+const TIERS = ["basic", "premium"];
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -25,7 +28,7 @@ const userSchema = new mongoose.Schema(
     },
     tier: {
       type: String,
-      enum: ["basic", "premium"],
+      enum: TIERS,
       default: "basic",
     },
     status: {
@@ -38,3 +41,4 @@ const userSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("User", userSchema);
+module.exports.TIERS = TIERS;
