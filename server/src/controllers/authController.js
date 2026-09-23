@@ -69,6 +69,11 @@ async function login(req, res) {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
+    // US2.3 AC: deactivated members are blocked from logging in.
+    if (user.status === "inactive") {
+      return res.status(403).json({ error: "This account has been deactivated." });
+    }
+
     const token = signToken(user);
     return res.status(200).json({
       token,

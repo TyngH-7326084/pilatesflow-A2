@@ -73,4 +73,30 @@ async function updateMember(req, res) {
   }
 }
 
-module.exports = { getMembers, updateMember };
+// PATCH /api/members/:id/deactivate  (Admin only)
+// US2.3 AC: sets status to inactive; already-inactive member -> no-op, not an error.
+// Blocking login/new bookings is enforced separately in authController/bookingController.
+// Note: this app has no Waitlist model yet, so the "cascade-remove waitlist entries"
+// AC is not implemented here — revisit once a waitlist feature exists.
+async function deactivateMember(req, res) {
+  try {
+    const member = await User.findById(req.params.id);
+    if (!member) {
+      return res.status(404).json({ error: "Member not found." });
+    }
+
+    if (member.status === "inactive") {
+      const { passwordHash, ...safeMember } = member.toObject();
+      return res.json(safeMember);
+    }
+
+    member.status = "inactive";
+    const updated = await member.save();
+    const { passwordHash, ...safeMember } = updated.toObject();
+    return res.json(safeMember);
+  } catch (err) {
+    return res.status(500).json({ error: "Could not deactivate member." });
+  }
+}
+
+module.exports = { getMembers, updateMember, deactivateMember };
