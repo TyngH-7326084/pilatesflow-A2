@@ -2,6 +2,7 @@ const Waitlist = require('../models/Waitlist');
 const Booking = require('../models/Booking');
 const Class = require('../models/Class');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 
 // Position = nember of entries for the class that joined earlier, + 1. 
 // _id breaks ties if two members join in the same millisecond
@@ -80,3 +81,31 @@ async function getMyWaitlist(req, res) {
 }
 
 module.exports = { joinWaitlist, getMyWaitlist };
+
+// DELETE /api/waitlist/:id (required Authentication)
+// US2.6 AC: members can only remove their own entry (403 otherwise)
+// positions are computed from joinedAt, so deleting this entry
+// automatically moves everyone behind it up by one
+
+async function leaveWaitlist(req, res){
+    const { id } = req.params;
+    
+    // a malformed id wwould throw a CastError (500), sp threat it as not found
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(404).json({ error: "Entry not found" });
+    }
+
+    const entry = await Waitlist.findById(id);
+    if (!entry) {
+        return res.status(404).json({ error: "Entry not found" });
+    }
+
+    if (entry.member.toString() !== req.user.sub) {
+        return res.status(403).json({ error: "You can only remove your own waitlist entries." });
+    }
+
+    await entry.deleteOne();
+    return res.json({ message: "Successfully removed from the waitlist." });
+}
+
+module.exports = { joinWaitlist, getMyWaitlist, leaveWaitlist };
