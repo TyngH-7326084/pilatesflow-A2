@@ -10,6 +10,9 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [cancelMessage, setCancelMessage] = useState("");
   const [cancelling, setCancelling] = useState(null);
+  const [waitlist, setWaitlist] = useState([]);
+  const [waitlistError, setWaitlistError] = useState("");
+  const [leaving, setLeaving] = useState(null);
 
   const loadBookings = async () => {
     try {
@@ -25,8 +28,8 @@ export default function MyBookings() {
     }
   };
 
-  useEffect(() => {
-    loadBookings();
+    useEffect(() => {
+      loadBookings();
   }, []);
 
   const handleCancel = async (bookingId) => {
@@ -45,6 +48,42 @@ export default function MyBookings() {
       setCancelling(null);
     }
   };
+
+  const loadWaitlist = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${API}/api/waitlist/mine`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setWaitlist(data);
+      setWaitlistError("");
+
+    } catch (err) {
+      setWaitlistError("Could not load your waitlist entries. Please try again later.");
+    }
+  };
+  
+  const handleLeaveWaitlist = async (entryId) => {
+    setLeaving(entryId);
+    setCancelMessage("");
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API}/api/waitlist/${entryId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCancelMessage("Waitlist entry removed.");
+      await loadWaitlist();
+    } catch (err) {
+      setCancelMessage(err.response?.data?.error || "Could not remove waitlist entry.");
+    } finally {
+      setLeaving(null);
+    }
+  };
+
+  useEffect(() => {
+    loadBookings();
+    loadWaitlist();
+  }, []);
 
   return (
     <>
@@ -88,6 +127,46 @@ export default function MyBookings() {
                   disabled={cancelling === b._id}
                 >
                   {cancelling === b._id ? "Cancelling..." : "Cancel"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <h2 className="class-list-title">My Waitlists</h2>
+        <p className="schedule-subtitle">
+        Classes you're queued for. Leave any you no longer want.
+        </p>
+
+      {waitlistError && <p role="alert" className="auth-error">{waitlistError}</p>}
+
+      {!loading && !waitlistError && waitlist.length === 0 && (
+        <p>You're not on any waitlists.</p>
+      )}
+
+        {waitlist.length > 0 && (
+          <ul className="class-list">
+            {waitlist.map((w) => (
+              <li key={w._id} className="class-list-item">
+                <div>
+                  <strong>{w.class.className}</strong>
+                  <p className="class-meta">
+                    {new Date(w.class.classDateTime).toLocaleString(undefined, {
+                      weekday: "short",
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}{" "}
+                    · Position #{w.position}
+                  </p>
+                </div>
+                <button
+                  className="btn-ghost"
+                  onClick={() => handleLeaveWaitlist(w._id)}
+                  disabled={leaving === w._id}
+                >
+                  {leaving === w._id ? "Leaving..." : "Leave waitlist"}
                 </button>
               </li>
             ))}
