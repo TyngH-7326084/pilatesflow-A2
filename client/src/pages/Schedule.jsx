@@ -10,6 +10,7 @@ export default function Schedule() {
   const [loading, setLoading] = useState(true);
   const [bookingMessages, setBookingMessages] = useState({}); // { [classId]: { type, text } }
   const [bookingInProgress, setBookingInProgress] = useState(null);
+  const [waitlistPositions, setWaitlistPositions] = useState({}); // { [classId]: position }
 
   const role = localStorage.getItem("role"); // "admin" | "member" | null
 
@@ -32,9 +33,23 @@ export default function Schedule() {
     }
   };
 
-  useEffect(() => {
-    loadClasses();
-  }, []);
+  const loadWaitlist = async () => {
+  if (role !== "member") return;
+  try {
+    const token = localStorage.getItem("token");
+    const { data } = await axios.get(`${API}/api/waitlist/mine`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setWaitlistPositions(Object.fromEntries(data.map((w) => [w.class._id, w.position])));
+  } catch (err) {
+    // Non-fatal: the schedule still renders without waitlist positions
+  }
+};
+
+useEffect(() => {
+  loadClasses();
+  loadWaitlist();
+}, []);
 
   const handleBook = async (classId) => {
     setBookingInProgress(classId);
@@ -63,6 +78,36 @@ export default function Schedule() {
       setBookingInProgress(null);
     }
   };
+  
+  const handleJoinWaitlist = async (classId) => {
+  setBookingInProgress(classId);
+  setBookingMessages((prev) => ({ ...prev, [classId]: null }));
+  try {
+    const token = localStorage.getItem("token");
+    const { data } = await axios.post(
+      `${API}/api/waitlist`,
+      { classId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setWaitlistPositions((prev) => ({ ...prev, [classId]: data.position }));
+    setBookingMessages((prev) => ({
+      ...prev,
+      [classId]: { type: "success", text: `You're on the waitlist at position #${data.position}.` },
+    }));
+  } catch (err) {
+    setBookingMessages((prev) => ({
+      ...prev,
+      [classId]: {
+        type: "error",
+        text: err.response?.data?.error || "Could not join the waitlist.",
+      },
+    }));
+    await loadClasses(); // a spot may have opened up, so show "Book" again
+  } finally {
+    setBookingInProgress(null);
+  }
+};
+
 
   return (
     <>
@@ -111,7 +156,7 @@ export default function Schedule() {
                 </div>
                 <div className="class-list-actions">
                   <span className="class-capacity">
-                    {c.availableSpots} spots available
+                    {c.availableSpots > 0 ? `${c.availableSpots} spots available` : "Class full"}
                   </span>
                   {role === "member" && c.availableSpots > 0 && (
                     <button
@@ -122,11 +167,19 @@ export default function Schedule() {
                       {bookingInProgress === c._id ? "Booking..." : "Book"}
                     </button>
                   )}
-                  {role === "member" && c.availableSpots === 0 && (
-                    <span className="auth-error">Class full</span>
-                  )}
+                  {role === "member" && c.availableSpots <= 0 &&
+                    (waitlistPositions[c._id] ? (
+                      <span className="class-capacity">Waitlist #{waitlistPositions[c._id]}</span>
+                    ) : (
+                      <button
+                        className="btn-secondary"
+                        onClick={() => handleJoinWaitlist(c._id)}
+                        disabled={bookingInProgress === c._id}
+                      >
+                        {bookingInProgress === c._id ? "Joining..." : "Join waitlist"}
+                      </button>
+                    ))}
                 </div>
-
               </li>
             ))}
           </ul>

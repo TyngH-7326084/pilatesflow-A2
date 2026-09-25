@@ -9,10 +9,12 @@ const errorHandler = require("./middleware/errorHandler");
 const bookingRoutes = require("./routes/bookingRoutes");
 const instructorRoutes = require("./routes/instructorRoutes")
 const memberRoutes = require("./routes/memberRoutes")
+const waitlistRoutes = require("./routes/waitlistRoutes");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use("/api/waitlist", waitlistRoutes);
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
