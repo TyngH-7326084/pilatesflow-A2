@@ -13,6 +13,11 @@ export default function MyBookings() {
   const [waitlist, setWaitlist] = useState([]);
   const [waitlistError, setWaitlistError] = useState("");
   const [leaving, setLeaving] = useState(null);
+  const [classes, setClasses] = useState([]);
+  const [rescheduleOpen, setRescheduleOpen] = useState(null);
+  const [targetClassId, setTargetClassId] = useState("");
+  const [rescheduling, setRescheduling] = useState(null);
+  const [rescheduleMessage, setRescheduleMessage] = useState("");
 
   const loadBookings = async () => {
     try {
@@ -20,17 +25,23 @@ export default function MyBookings() {
       const { data } = await axios.get(`${API}/api/bookings/mine`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setBookings(data);
-    } catch (err) {
+      const loadedAt = new Date();
+      setBookings(
+        data.map((booking) => ({
+          ...booking,
+          rescheduleEligible:
+            booking.class &&
+            new Date(booking.class.classDateTime) > loadedAt &&
+            (!booking.class.status ||
+              booking.class.status.toLowerCase() === "published"),
+        }))
+      );
+    } catch {
       setError("Could not load your bookings. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
-
-    useEffect(() => {
-      loadBookings();
-  }, []);
 
   const handleCancel = async (bookingId) => {
     setCancelling(bookingId);
@@ -58,8 +69,80 @@ export default function MyBookings() {
       setWaitlist(data);
       setWaitlistError("");
 
-    } catch (err) {
+    } catch {
       setWaitlistError("Could not load your waitlist entries. Please try again later.");
+    }
+  };
+
+  const loadClasses = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/classes`);
+      const loadedAt = new Date();
+      setClasses(
+        data.filter(
+          (classItem) => new Date(classItem.classDateTime) > loadedAt
+        )
+      );
+    } catch {
+      setRescheduleMessage("Could not load classes for rescheduling.");
+    }
+  };
+
+  const eligibleDestinations = (booking) => {
+    const bookedClassIds = new Set(
+      bookings.filter((b) => b._id !== booking._id).map((b) => b.class?._id)
+    );
+
+    return classes.filter((classItem) => {
+      const published =
+        !classItem.status || classItem.status.toLowerCase() === "published";
+      return (
+        classItem._id !== booking.class?._id &&
+        !bookedClassIds.has(classItem._id) &&
+        classItem.availableSpots > 0 &&
+        published
+      );
+    });
+  };
+
+  const openReschedule = (bookingId) => {
+    setRescheduleOpen(bookingId);
+    setTargetClassId("");
+    setRescheduleMessage("");
+  };
+
+  const closeReschedule = () => {
+    setRescheduleOpen(null);
+    setTargetClassId("");
+    setRescheduleMessage("");
+  };
+
+  const handleReschedule = async (bookingId) => {
+    if (!targetClassId) {
+      setRescheduleMessage("Choose a destination class.");
+      return;
+    }
+
+    setRescheduling(bookingId);
+    setRescheduleMessage("");
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.patch(
+        `${API}/api/bookings/${bookingId}/reschedule`,
+        { targetClassId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setCancelMessage(data.message);
+      setRescheduleOpen(null);
+      setTargetClassId("");
+      await Promise.all([loadBookings(), loadClasses()]);
+    } catch (err) {
+      setRescheduleMessage(
+        err.response?.data?.error || "Could not reschedule booking."
+      );
+      await Promise.all([loadBookings(), loadClasses()]);
+    } finally {
+      setRescheduling(null);
     }
   };
   
@@ -81,8 +164,11 @@ export default function MyBookings() {
   };
 
   useEffect(() => {
+    // These loaders update state after their network requests resolve.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadBookings();
     loadWaitlist();
+    loadClasses();
   }, []);
 
   return (
@@ -121,13 +207,75 @@ export default function MyBookings() {
                     })}
                   </p>
                 </div>
-                <button
-                  className="btn-ghost"
-                  onClick={() => handleCancel(b._id)}
-                  disabled={cancelling === b._id}
-                >
-                  {cancelling === b._id ? "Cancelling..." : "Cancel"}
-                </button>
+                <div className="booking-actions">
+                  <div className="booking-action-buttons">
+                    {b.rescheduleEligible && (
+                      <button
+                        className="btn-secondary"
+                        onClick={() => openReschedule(b._id)}
+                        disabled={rescheduling === b._id}
+                      >
+                        Reschedule
+                      </button>
+                    )}
+                    <button
+                      className="btn-ghost"
+                      onClick={() => handleCancel(b._id)}
+                      disabled={cancelling === b._id}
+                    >
+                      {cancelling === b._id ? "Cancelling..." : "Cancel"}
+                    </button>
+                  </div>
+
+                  {rescheduleOpen === b._id && (
+                    <div className="reschedule-panel">
+                      <label htmlFor={`reschedule-${b._id}`}>
+                        Destination class
+                      </label>
+                      <select
+                        id={`reschedule-${b._id}`}
+                        value={targetClassId}
+                        onChange={(event) => setTargetClassId(event.target.value)}
+                        disabled={rescheduling === b._id}
+                      >
+                        <option value="">Choose a class</option>
+                        {eligibleDestinations(b).map((classItem) => (
+                          <option key={classItem._id} value={classItem._id}>
+                            {classItem.className} · {classItem.instructorName} ·{" "}
+                            {new Date(classItem.classDateTime).toLocaleString()}
+                            {` · ${classItem.availableSpots} spots`}
+                          </option>
+                        ))}
+                      </select>
+                      {eligibleDestinations(b).length === 0 && (
+                        <p className="class-meta">
+                          No eligible destination classes currently have space.
+                        </p>
+                      )}
+                      {rescheduleMessage && (
+                        <p role="alert" className="auth-error">
+                          {rescheduleMessage}
+                        </p>
+                      )}
+                      <div className="booking-action-buttons">
+                        <button
+                          className="btn-primary"
+                          onClick={() => handleReschedule(b._id)}
+                          disabled={rescheduling === b._id || !targetClassId}
+                        >
+                          {rescheduling === b._id ? "Moving..." : "Confirm move"}
+                        </button>
+                        <button
+                          className="btn-ghost"
+                          onClick={closeReschedule}
+                          disabled={rescheduling === b._id}
+                        >
+                          Keep current class
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

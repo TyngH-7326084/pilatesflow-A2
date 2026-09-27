@@ -6,7 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "npm run test:f4",
+    "test:f4": "node --test test/f4-reschedule.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
