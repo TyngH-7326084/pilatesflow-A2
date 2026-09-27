@@ -350,3 +350,68 @@
 .class-list-item .btn-ghost {
   flex: none;
 }
+
+.booking-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 280px;
+}
+
+.booking-action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.booking-action-buttons .btn-primary,
+.booking-action-buttons .btn-secondary,
+.booking-action-buttons .btn-ghost {
+  flex: none;
+  margin-top: 0;
+  padding: 8px 12px;
+}
+
+.reschedule-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: min(420px, 60vw);
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--accent-bg);
+  text-align: left;
+}
+
+.reschedule-panel label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reschedule-panel select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+}
+
+@media (max-width: 700px) {
+  .class-list-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .booking-actions {
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .reschedule-panel {
+    width: auto;
+  }
+}
