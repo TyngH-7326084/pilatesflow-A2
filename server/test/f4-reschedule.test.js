@@ -382,3 +382,78 @@ test("two members racing for the final place produce exactly one booking", async
     assert.equal(fixture.existingBooking.class, ids.source);
   }
 });
+
+test("reschedule options exclude current, booked, past, unpublished, and full classes", async () => {
+  const otherBookedClassId = "64b000000000000000000020";
+  const openClassId = "64b000000000000000000021";
+  const fullClassId = "64b000000000000000000022";
+  let receivedClassQuery;
+
+  const Booking = {
+    findById: async () => ({
+      _id: ids.booking,
+      user: ids.member,
+      class: ids.source,
+    }),
+    find: () => ({
+      select: async () => [{ class: otherBookedClassId }],
+    }),
+    countDocuments: async ({ class: classId }) =>
+      String(classId) === fullClassId ? 2 : 1,
+  };
+  const Class = {
+    findById: async () => ({
+      _id: ids.source,
+      classDateTime: "2030-01-01T09:00:00.000Z",
+      status: "published",
+    }),
+    find: (query) => ({
+      sort: async () => {
+        receivedClassQuery = query;
+        return [
+          {
+            _id: openClassId,
+            className: "Open class",
+            classDateTime: "2030-01-02T09:00:00.000Z",
+            status: "published",
+            capacity: 3,
+          },
+          {
+            _id: fullClassId,
+            className: "Full class",
+            classDateTime: "2030-01-03T09:00:00.000Z",
+            status: "published",
+            capacity: 2,
+          },
+        ];
+      },
+    }),
+  };
+  const service = new BookingService({
+    Booking,
+    Class,
+    User: {},
+    now: () => new Date("2029-01-01T00:00:00.000Z"),
+  });
+
+  const options = await service.getRescheduleOptions({
+    actorId: ids.member,
+    bookingId: ids.booking,
+  });
+
+  assert.deepEqual(receivedClassQuery._id.$nin, [
+    ids.source,
+    otherBookedClassId,
+  ]);
+  assert.equal(
+    receivedClassQuery.classDateTime.$gt.toISOString(),
+    "2029-01-01T00:00:00.000Z"
+  );
+  assert.equal(receivedClassQuery.$or[0].status.toString(), "/^published$/i");
+  assert.deepEqual(receivedClassQuery.$or[1], {
+    status: { $exists: false },
+  });
+  assert.equal(options.length, 1);
+  assert.equal(options[0]._id, openClassId);
+  assert.equal(options[0].availableSpots, 2);
+});

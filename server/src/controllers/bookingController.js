@@ -43,6 +43,16 @@ async function cancelBooking(req, res) {
   return res.json({ message: "Booking cancelled." });
 }
 
+// GET /api/bookings/:id/reschedule-options (Member only, requireAuth)
+// PF-49: return only valid destinations for the member's current booking.
+async function getRescheduleOptions(req, res) {
+  const options = await bookingService.getRescheduleOptions({
+    actorId: req.user.sub,
+    bookingId: req.params.id,
+  });
+  return res.json(options);
+}
+
 // PATCH /api/bookings/:id/reschedule (Member only, requireAuth)
 // PF-46: retain the booking identity while moving it to an eligible class.
 async function rescheduleBooking(req, res) {
@@ -64,5 +74,6 @@ module.exports = {
   createBooking,
   getMyBookings,
   cancelBooking,
+  getRescheduleOptions,
   rescheduleBooking,
 };

@@ -172,6 +172,61 @@ class BookingService {
     return result;
   }
 
+  async getRescheduleOptions({ actorId, bookingId }) {
+    this.assertValidId(actorId, "actorId");
+    this.assertValidId(bookingId, "bookingId");
+
+    const booking = await this.Booking.findById(bookingId);
+    if (!booking) {
+      throw new BookingServiceError(404, "Booking not found.");
+    }
+    if (booking.user.toString() !== actorId) {
+      throw new BookingServiceError(
+        403,
+        "You can only reschedule your own bookings."
+      );
+    }
+
+    const sourceClass = await this.Class.findById(booking.class);
+    if (!sourceClass) {
+      throw new BookingServiceError(404, "Current class not found.");
+    }
+    this.assertEligibleClass(sourceClass, "Current");
+
+    const otherBookings = await this.Booking.find({
+      _id: { $ne: booking._id },
+      user: actorId,
+    }).select("class");
+    const excludedClassIds = [
+      String(booking.class),
+      ...otherBookings.map((item) => String(item.class)),
+    ];
+
+    const candidates = await this.Class.find({
+      _id: { $nin: excludedClassIds },
+      classDateTime: { $gt: this.now() },
+      $or: [{ status: /^published$/i }, { status: { $exists: false } }],
+    }).sort({ classDateTime: 1 });
+
+    const options = await Promise.all(
+      candidates.map(async (classDocument) => {
+        const bookedCount = await this.Booking.countDocuments({
+          class: classDocument._id,
+        });
+        const availableSpots = classDocument.capacity - bookedCount;
+        if (availableSpots <= 0) return null;
+
+        const values =
+          typeof classDocument.toObject === "function"
+            ? classDocument.toObject()
+            : classDocument;
+        return { ...values, availableSpots };
+      })
+    );
+
+    return options.filter(Boolean);
+  }
+
   async rescheduleBooking({ actorId, bookingId, targetClassId }) {
     this.assertValidId(actorId, "actorId");
     this.assertValidId(bookingId, "bookingId");
