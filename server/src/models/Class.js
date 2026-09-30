@@ -26,6 +26,14 @@ const classSchema = new mongoose.Schema(
       required: true,
       min: 1, // AC: capacity of zero or less is rejected
     },
+    // Every capacity-changing transaction increments this value. Updating the
+    // shared class document creates database-level contention, so two API
+    // instances cannot both claim the final place from stale counts.
+    capacityVersion: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

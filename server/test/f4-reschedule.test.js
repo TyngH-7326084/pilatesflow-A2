@@ -27,6 +27,7 @@ function createFixture({
   missingSource = false,
   missingTarget = false,
   afterBookingUpdate,
+  afterCapacityRelease,
 } = {}) {
   let saveCount = 0;
   const booking = {
@@ -62,6 +63,11 @@ function createFixture({
       if (id === ids.target && missingTarget) return null;
       return classes[id] ?? null;
     },
+    findOneAndUpdate: async ({ _id }) => {
+      if (_id === ids.source && missingSource) return null;
+      if (_id === ids.target && missingTarget) return null;
+      return classes[_id] ?? null;
+    },
   };
   const User = {
     findById: async () => ({ _id: memberId, status: "active" }),
@@ -87,6 +93,7 @@ function createFixture({
       now: () => new Date("2029-01-01T00:00:00.000Z"),
       runInTransaction,
       afterBookingUpdate,
+      afterCapacityRelease,
     }),
   };
 }
@@ -240,9 +247,13 @@ test("past or unpublished classes and duplicate bookings are rejected", async ()
 });
 
 test("a failure after the booking update rolls the entire move back", async () => {
+  let promotionAttempts = 0;
   const fixture = createFixture({
     afterBookingUpdate: async () => {
       throw new Error("simulated transaction failure");
+    },
+    afterCapacityRelease: async () => {
+      promotionAttempts += 1;
     },
   });
 
@@ -256,4 +267,118 @@ test("a failure after the booking update rolls the entire move back", async () =
   );
 
   assert.equal(fixture.booking.class, ids.source);
+  assert.equal(promotionAttempts, 0);
+});
+
+function createConcurrentFixture() {
+  const members = {
+    one: ids.member,
+    two: "64b000000000000000000011",
+  };
+  const existingBooking = {
+    _id: ids.booking,
+    user: members.one,
+    class: ids.source,
+    async save() {},
+  };
+  const bookings = [existingBooking];
+  const classes = {
+    [ids.source]: {
+      _id: ids.source,
+      classDateTime: "2030-01-01T09:00:00.000Z",
+      capacity: 5,
+      status: "published",
+    },
+    [ids.target]: {
+      _id: ids.target,
+      classDateTime: "2030-01-02T09:00:00.000Z",
+      capacity: 1,
+      status: "published",
+    },
+  };
+  let transactionQueue = Promise.resolve();
+
+  const runInTransaction = async (operation) => {
+    const previous = transactionQueue;
+    let release;
+    transactionQueue = new Promise((resolve) => {
+      release = resolve;
+    });
+    await previous;
+
+    const snapshot = bookings.map((booking) => ({ ...booking }));
+    try {
+      return await operation({ id: "serialized-database-session" });
+    } catch (error) {
+      bookings.splice(0, bookings.length, ...snapshot);
+      existingBooking.class = ids.source;
+      throw error;
+    } finally {
+      release();
+    }
+  };
+
+  const Booking = {
+    findById: async (id) => bookings.find((booking) => booking._id === id),
+    exists: async ({ _id, user, class: classId }) =>
+      bookings.some(
+        (booking) =>
+          (!_id?.$ne || booking._id !== _id.$ne) &&
+          booking.user === user &&
+          booking.class === classId
+      ),
+    countDocuments: async ({ class: classId }) =>
+      bookings.filter((booking) => booking.class === classId).length,
+    create: async ([values]) => {
+      const booking = {
+        _id: "64b000000000000000000012",
+        ...values,
+      };
+      bookings.push(booking);
+      return [booking];
+    },
+  };
+  const Class = {
+    findById: async (id) => classes[id] ?? null,
+    findOneAndUpdate: async ({ _id }) => classes[_id] ?? null,
+  };
+  const User = {
+    findById: async (id) => ({ _id: id, status: "active" }),
+  };
+  const service = new BookingService({
+    Booking,
+    Class,
+    User,
+    now: () => new Date("2029-01-01T00:00:00.000Z"),
+    runInTransaction,
+  });
+
+  return { bookings, existingBooking, members, service };
+}
+
+test("two members racing for the final place produce exactly one booking", async () => {
+  const fixture = createConcurrentFixture();
+
+  const results = await Promise.allSettled([
+    fixture.service.createBooking({
+      actorId: fixture.members.two,
+      classId: ids.target,
+    }),
+    fixture.service.rescheduleBooking({
+      actorId: fixture.members.one,
+      bookingId: ids.booking,
+      targetClassId: ids.target,
+    }),
+  ]);
+
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal(results.filter((result) => result.status === "rejected").length, 1);
+  assert.equal(
+    fixture.bookings.filter((booking) => booking.class === ids.target).length,
+    1
+  );
+
+  if (fixture.existingBooking.class !== ids.target) {
+    assert.equal(fixture.existingBooking.class, ids.source);
+  }
 });

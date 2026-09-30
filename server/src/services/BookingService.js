@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const CapacityService = require("./CapacityService");
 
 class BookingServiceError extends Error {
   constructor(status, message) {
@@ -16,6 +17,8 @@ class BookingService {
     now = () => new Date(),
     runInTransaction,
     afterBookingUpdate = async () => {},
+    afterCapacityRelease = async () => {},
+    capacityService,
   }) {
     this.Booking = Booking;
     this.Class = Class;
@@ -24,6 +27,9 @@ class BookingService {
     this.runInTransaction =
       runInTransaction || ((operation) => this.withMongoTransaction(operation));
     this.afterBookingUpdate = afterBookingUpdate;
+    this.afterCapacityRelease = afterCapacityRelease;
+    this.capacityService =
+      capacityService || new CapacityService({ Booking, Class });
   }
 
   async withMongoTransaction(operation) {
@@ -66,6 +72,106 @@ class BookingService {
     }
   }
 
+  async createBooking({ actorId, classId }) {
+    this.assertValidId(actorId, "actorId");
+    this.assertValidId(classId, "classId");
+
+    try {
+      return await this.runInTransaction(async (session) => {
+        const member = await this.withSession(
+          this.User.findById(actorId),
+          session
+        );
+        if (!member || member.status === "inactive") {
+          throw new BookingServiceError(403, "Your account is deactivated.");
+        }
+
+        const locked = await this.capacityService.lockClasses([classId], session);
+        const targetClass = locked.get(String(classId));
+        if (!targetClass) {
+          throw new BookingServiceError(404, "Class not found.");
+        }
+        this.assertEligibleClass(targetClass, "Selected");
+
+        const duplicate = await this.withSession(
+          this.Booking.exists({ user: actorId, class: classId }),
+          session
+        );
+        if (duplicate) {
+          throw new BookingServiceError(
+            409,
+            "You have already booked this class."
+          );
+        }
+
+        const bookedCount = await this.capacityService.countBookings(
+          classId,
+          session
+        );
+        if (bookedCount >= targetClass.capacity) {
+          throw new BookingServiceError(409, "This class is full.");
+        }
+
+        const created = await this.Booking.create(
+          [{ user: actorId, class: classId }],
+          session ? { session } : undefined
+        );
+        const booking = Array.isArray(created) ? created[0] : created;
+
+        return {
+          booking,
+          availableSpots: targetClass.capacity - bookedCount - 1,
+        };
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        throw new BookingServiceError(
+          409,
+          "You have already booked this class."
+        );
+      }
+      throw error;
+    }
+  }
+
+  async cancelBooking({ actorId, bookingId }) {
+    this.assertValidId(actorId, "actorId");
+    this.assertValidId(bookingId, "bookingId");
+
+    const result = await this.runInTransaction(async (session) => {
+      const booking = await this.withSession(
+        this.Booking.findById(bookingId),
+        session
+      );
+      if (!booking) {
+        throw new BookingServiceError(404, "Booking not found.");
+      }
+      if (booking.user.toString() !== actorId) {
+        throw new BookingServiceError(
+          403,
+          "You can only cancel your own bookings."
+        );
+      }
+
+      const sourceClassId = booking.class.toString();
+      const locked = await this.capacityService.lockClasses(
+        [sourceClassId],
+        session
+      );
+      if (!locked.get(sourceClassId)) {
+        throw new BookingServiceError(404, "Current class not found.");
+      }
+
+      await booking.deleteOne(session ? { session } : undefined);
+      return { sourceClassId };
+    });
+
+    // F2 can supply a promotion callback here. It runs only after commit, so a
+    // rolled-back cancellation or reschedule never promotes a waitlist entry.
+    await this.afterCapacityRelease(result);
+    return result;
+  }
+
   async rescheduleBooking({ actorId, bookingId, targetClassId }) {
     this.assertValidId(actorId, "actorId");
     this.assertValidId(bookingId, "bookingId");
@@ -99,10 +205,12 @@ class BookingService {
         );
       }
 
-      const [sourceClass, targetClass] = await Promise.all([
-        this.withSession(this.Class.findById(sourceClassId), session),
-        this.withSession(this.Class.findById(targetClassId), session),
-      ]);
+      const lockedClasses = await this.capacityService.lockClasses(
+        [sourceClassId, targetClassId],
+        session
+      );
+      const sourceClass = lockedClasses.get(sourceClassId);
+      const targetClass = lockedClasses.get(String(targetClassId));
       if (!sourceClass) {
         throw new BookingServiceError(404, "Current class not found.");
       }
@@ -128,8 +236,8 @@ class BookingService {
         );
       }
 
-      const bookedCount = await this.withSession(
-        this.Booking.countDocuments({ class: targetClassId }),
+      const bookedCount = await this.capacityService.countBookings(
+        targetClassId,
         session
       );
       if (bookedCount >= targetClass.capacity) {
@@ -149,6 +257,9 @@ class BookingService {
         sourceClassId,
         availableSpots: targetClass.capacity - bookedCount - 1,
       };
+    }).then(async (result) => {
+      await this.afterCapacityRelease({ sourceClassId: result.sourceClassId });
+      return result;
     });
   }
 }
