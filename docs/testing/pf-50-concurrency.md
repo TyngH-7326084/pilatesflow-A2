@@ -17,4 +17,4 @@ The test resets the database and repeats the scenario ten times. Every trial mus
 - every rejected reschedule still linked to its original class; and
 - no unexpected HTTP status, timeout, or server error.
 
-The Node test diagnostics print these counts for each trial, so the GitHub Actions log is retained as assessment evidence. The second PF-50 stage will repeat the concurrent request test through the ALB after PF-28 has two healthy deployed targets; PF-92 records the separate Apache Benchmark and CloudWatch evidence.
+The Node test diagnostics print these counts for each trial. PF-51 retains the terminal output in both the GitHub Actions log and a downloadable `server-test-evidence-<commit>` artifact for 14 days. The second PF-50 stage will repeat the concurrent request test through the ALB after PF-28 has two healthy deployed targets; PF-92 records the separate Apache Benchmark and CloudWatch evidence.

@@ -46,15 +46,25 @@ jobs:
         working-directory: server
         run: find src -name '*.js' -print0 | xargs -0 -n1 node --check
 
-      - name: Run server tests when the test suite is available
+      - name: Run server tests and retain terminal evidence
         working-directory: server
         shell: bash
         run: |
+          mkdir -p test-results
           if node -e 'process.exit(require("./package.json").scripts?.test ? 0 : 1)'; then
-            npm test
+            npm test 2>&1 | tee test-results/server-tests.txt
           else
             echo "::notice title=Backend tests pending::No server test script exists yet. Feature test Jira items must add it before final assessment evidence is collected."
           fi
+
+      - name: Upload server test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-test-evidence-${{ github.sha }}
+          path: server/test-results/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Install client dependencies
         working-directory: client
