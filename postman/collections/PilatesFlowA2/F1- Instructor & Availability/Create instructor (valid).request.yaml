@@ -1,0 +1,24 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/instructors"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"name\": \"Lisa Turner\",\r
+
+    \  \"bio\": \"Certified reformer instructor with 10 years' experience.\",\r
+
+    \  \"specialties\": [\"Reformer\", \"Mat\"]\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+scripts:
+  - type: afterResponse
+    code: pm.environment.set("instructorId", pm.response.json()._id);
+    language: text/javascript
+order: 1790498706605

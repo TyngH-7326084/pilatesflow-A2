@@ -1,6 +1,7 @@
 $kind: http-request
 name: Reschedule booking (same class rejection)
-description: Verifies that moving a booking to its current class returns 400 and leaves the booking unchanged.
+description: Verifies that moving a booking to its current class returns 400 and
+  leaves the booking unchanged.
 url: "{{baseUrl}}/bookings/{{bookingId}}/reschedule"
 method: PATCH
 body:
@@ -10,4 +11,4 @@ auth:
   type: bearer
   credentials:
     token: "{{token}}"
-order: 9100
+order: 349908535470187

@@ -1,6 +1,7 @@
 $kind: http-request
 name: Reschedule booking (success)
-description: Moves the authenticated member's existing booking to another future class with space while retaining the booking ID.
+description: Moves the authenticated member's existing booking to another future
+  class with space while retaining the booking ID.
 url: "{{baseUrl}}/bookings/{{bookingId}}/reschedule"
 method: PATCH
 body:
@@ -10,4 +11,4 @@ auth:
   type: bearer
   credentials:
     token: "{{token}}"
-order: 9000
+order: 1790498912059

@@ -3,10 +3,12 @@ values:
   - key: token
     secret: true
   - key: baseUrl
-    value: http://localhost:3000/api
+    value: 'http://localhost:3000/api'
   - key: bookingId
     value: ''
   - key: targetClassId
     value: ''
   - key: sourceClassId
+    value: ''
+  - key: instructorId
     value: ''

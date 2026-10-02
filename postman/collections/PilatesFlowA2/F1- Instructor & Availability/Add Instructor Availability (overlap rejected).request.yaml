@@ -1,0 +1,11 @@
+$kind: http-request
+url: "{{baseUrl}}/instructors/{{instructorId}}/availability"
+method: POST
+body:
+  type: json
+  content: '{ "dayOfWeek": "Wednesday", "startTime": "09:30", "endTime": "10:30" }'
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 4491889948227878

@@ -1,13 +1,10 @@
 $kind: http-request
-name: Create instructor (validation error) http://localhost:3000/api/instructors
 description: ""
-url: http://localhost:3000/api/instructors
+url: "{{baseUrl}}/instructors"
 method: POST
 body:
   type: json
   content: "{\r
-
-    \  \"name\": \"Instructor Test 2\",\r
 
     \  \"bio\": \"Certified reformer instructor\",\r
 
@@ -18,4 +15,4 @@ auth:
   type: bearer
   credentials:
     token: "{{token}}"
-order: 3000
+order: 2616051138329044

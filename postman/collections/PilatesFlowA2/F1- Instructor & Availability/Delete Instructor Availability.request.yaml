@@ -1,0 +1,9 @@
+$kind: http-request
+url: "{{baseUrl}}/instructors/{{instructorId}}/availability/6ab8d4716f2f6b88ad8\
+  20d9e"
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 4501861413329374
