@@ -6,6 +6,11 @@ import MemberManagement from "../components/MemberManagement";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
+const fetchClasses = async () => {
+  const { data } = await axios.get(`${API}/api/classes`);
+  return data;
+};
+
 export default function AdminDashboard() {
   const [classes, setClasses] = useState([]);
   const [className, setClassName] = useState("");
@@ -16,19 +21,30 @@ export default function AdminDashboard() {
   const [successMsg, setSuccessMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Refreshes the list after creating a class (called from handleSubmit).
   const loadClasses = async () => {
     try {
-      const { data } = await axios.get(`${API}/api/classes`);
-      setClasses(data);
-    } catch (err) {
+      setClasses(await fetchClasses());
+    } catch {
       setError("Could not load classes.");
     }
   };
 
+  // Initial load: state is only set once the request finishes.
   useEffect(() => {
-    loadClasses();
+    let ignore = false;
+    fetchClasses()
+      .then((data) => {
+        if (!ignore) setClasses(data);
+      })
+      .catch(() => {
+        if (!ignore) setError("Could not load classes.");
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
-
+  
   const validate = () => {
     if (!className.trim()) return "Class name is required.";
     if (!instructorName.trim()) return "Instructor name is required.";

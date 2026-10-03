@@ -4,6 +4,26 @@ import Navbar from "../components/Navbar";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
+// Classes in the next 7 days.
+const fetchUpcomingClasses = async () => {
+  const { data } = await axios.get(`${API}/api/classes`);
+  const now = new Date();
+  const sevenDaysOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return data.filter((c) => {
+    const classTime = new Date(c.classDateTime);
+    return classTime >= now && classTime <= sevenDaysOut;
+  });
+};
+
+// The member's waitlist positions, as { [classId]: position }.
+const fetchWaitlistPositions = async () => {
+  const token = localStorage.getItem("token");
+  const { data } = await axios.get(`${API}/api/waitlist/mine`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return Object.fromEntries(data.map((w) => [w.class._id, w.position]));
+};
+
 export default function Schedule() {
   const [classes, setClasses] = useState([]);
   const [error, setError] = useState("");
@@ -14,42 +34,46 @@ export default function Schedule() {
 
   const role = localStorage.getItem("role"); // "admin" | "member" | null
 
+  // Refreshes the schedule after booking or joining a waitlist.
   const loadClasses = async () => {
     try {
-      const { data } = await axios.get(`${API}/api/classes`);
-      const now = new Date();
-      const sevenDaysOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-      const upcoming = data.filter((c) => {
-        const classTime = new Date(c.classDateTime);
-        return classTime >= now && classTime <= sevenDaysOut;
-      });
-
-      setClasses(upcoming);
-    } catch (err) {
+      setClasses(await fetchUpcomingClasses());
+    } catch {
       setError("Could not load the schedule. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadWaitlist = async () => {
-  if (role !== "member") return;
-  try {
-    const token = localStorage.getItem("token");
-    const { data } = await axios.get(`${API}/api/waitlist/mine`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setWaitlistPositions(Object.fromEntries(data.map((w) => [w.class._id, w.position])));
-  } catch (err) {
-    // Non-fatal: the schedule still renders without waitlist positions
-  }
-};
+  // Initial load: classes for everyone, plus waitlist positions for members.
+  useEffect(() => {
+    let ignore = false;
 
-useEffect(() => {
-  loadClasses();
-  loadWaitlist();
-}, []);
+    fetchUpcomingClasses()
+      .then((upcoming) => {
+        if (!ignore) setClasses(upcoming);
+      })
+      .catch(() => {
+        if (!ignore) setError("Could not load the schedule. Please try again later.");
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+
+    if (role === "member") {
+      fetchWaitlistPositions()
+        .then((positions) => {
+          if (!ignore) setWaitlistPositions(positions);
+        })
+        .catch(() => {
+          // Non-fatal: the schedule still renders without waitlist positions
+        });
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [role]);
 
   const handleBook = async (classId) => {
     setBookingInProgress(classId);
