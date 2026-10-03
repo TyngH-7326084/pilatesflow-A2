@@ -1,0 +1,7 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/instructors"
+method: GET
+auth:
+  type: noauth
+order: 4286549524691101

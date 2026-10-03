@@ -1,1 +1,5 @@
 $kind: collection
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"

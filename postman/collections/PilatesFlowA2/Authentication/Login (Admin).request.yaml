@@ -1,0 +1,12 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/auth/login"
+method: POST
+body:
+  type: json
+  content: '{ "email": "admin@pilatesflow.com", "password": "AdminPass123" }'
+scripts:
+  - type: afterResponse
+    code: '   pm.environment.set("token", pm.response.json().token);'
+    language: text/javascript
+order: 1790498797283
