@@ -8,7 +8,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "npm run test:f4 && npm run test:f1",
-    "test:f4": "node --test test/f4-reschedule.test.js",
+    "test:f4": "node --test test/f4-reschedule.test.js test/f4-concurrency.integration.test.js",
     "test:f1": "node --test test/f1-conflict-detection.test.js test/f1-performance.test.js"
   },
   "dependencies": {
@@ -20,6 +20,8 @@
     "mongoose": "^8.5.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "mongodb-memory-server": "^11.3.0",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.1.4"
   }
 }

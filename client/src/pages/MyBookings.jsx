@@ -13,7 +13,8 @@ export default function MyBookings() {
   const [waitlist, setWaitlist] = useState([]);
   const [waitlistError, setWaitlistError] = useState("");
   const [leaving, setLeaving] = useState(null);
-  const [classes, setClasses] = useState([]);
+  const [destinationOptions, setDestinationOptions] = useState([]);
+  const [optionsLoading, setOptionsLoading] = useState(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(null);
   const [targetClassId, setTargetClassId] = useState("");
   const [rescheduling, setRescheduling] = useState(null);
@@ -74,46 +75,40 @@ export default function MyBookings() {
     }
   };
 
-  const loadClasses = async () => {
+  const loadRescheduleOptions = async (bookingId) => {
+    setOptionsLoading(bookingId);
     try {
-      const { data } = await axios.get(`${API}/api/classes`);
-      const loadedAt = new Date();
-      setClasses(
-        data.filter(
-          (classItem) => new Date(classItem.classDateTime) > loadedAt
-        )
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(
+        `${API}/api/bookings/${bookingId}/reschedule-options`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-    } catch {
-      setRescheduleMessage("Could not load classes for rescheduling.");
+      setDestinationOptions(data);
+      return data;
+    } catch (err) {
+      setDestinationOptions([]);
+      setRescheduleMessage(
+        err.response?.data?.error ||
+          "Could not load destination classes for rescheduling."
+      );
+      return [];
+    } finally {
+      setOptionsLoading(null);
     }
   };
 
-  const eligibleDestinations = (booking) => {
-    const bookedClassIds = new Set(
-      bookings.filter((b) => b._id !== booking._id).map((b) => b.class?._id)
-    );
-
-    return classes.filter((classItem) => {
-      const published =
-        !classItem.status || classItem.status.toLowerCase() === "published";
-      return (
-        classItem._id !== booking.class?._id &&
-        !bookedClassIds.has(classItem._id) &&
-        classItem.availableSpots > 0 &&
-        published
-      );
-    });
-  };
-
-  const openReschedule = (bookingId) => {
+  const openReschedule = async (bookingId) => {
     setRescheduleOpen(bookingId);
     setTargetClassId("");
     setRescheduleMessage("");
+    setDestinationOptions([]);
+    await loadRescheduleOptions(bookingId);
   };
 
   const closeReschedule = () => {
     setRescheduleOpen(null);
     setTargetClassId("");
+    setDestinationOptions([]);
     setRescheduleMessage("");
   };
 
@@ -135,12 +130,15 @@ export default function MyBookings() {
       setCancelMessage(data.message);
       setRescheduleOpen(null);
       setTargetClassId("");
-      await Promise.all([loadBookings(), loadClasses()]);
+      setDestinationOptions([]);
+      await loadBookings();
     } catch (err) {
       setRescheduleMessage(
         err.response?.data?.error || "Could not reschedule booking."
       );
-      await Promise.all([loadBookings(), loadClasses()]);
+      // A class may have filled since the options were displayed. Refresh both
+      // the booking and destination data so the member sees current capacity.
+      await Promise.all([loadBookings(), loadRescheduleOptions(bookingId)]);
     } finally {
       setRescheduling(null);
     }
@@ -168,7 +166,6 @@ export default function MyBookings() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadBookings();
     loadWaitlist();
-    loadClasses();
   }, []);
 
   return (
@@ -213,9 +210,13 @@ export default function MyBookings() {
                       <button
                         className="btn-secondary"
                         onClick={() => openReschedule(b._id)}
-                        disabled={rescheduling === b._id}
+                        disabled={
+                          rescheduling === b._id || optionsLoading === b._id
+                        }
                       >
-                        Reschedule
+                        {optionsLoading === b._id
+                          ? "Loading options..."
+                          : "Reschedule"}
                       </button>
                     )}
                     <button
@@ -236,10 +237,12 @@ export default function MyBookings() {
                         id={`reschedule-${b._id}`}
                         value={targetClassId}
                         onChange={(event) => setTargetClassId(event.target.value)}
-                        disabled={rescheduling === b._id}
+                        disabled={
+                          rescheduling === b._id || optionsLoading === b._id
+                        }
                       >
                         <option value="">Choose a class</option>
-                        {eligibleDestinations(b).map((classItem) => (
+                        {destinationOptions.map((classItem) => (
                           <option key={classItem._id} value={classItem._id}>
                             {classItem.className} · {classItem.instructorName} ·{" "}
                             {new Date(classItem.classDateTime).toLocaleString()}
@@ -247,11 +250,16 @@ export default function MyBookings() {
                           </option>
                         ))}
                       </select>
-                      {eligibleDestinations(b).length === 0 && (
-                        <p className="class-meta">
-                          No eligible destination classes currently have space.
-                        </p>
+                      {optionsLoading === b._id && (
+                        <p className="class-meta">Loading destinations...</p>
                       )}
+                      {optionsLoading !== b._id &&
+                        destinationOptions.length === 0 &&
+                        !rescheduleMessage && (
+                          <p className="class-meta">
+                            No eligible destination classes currently have space.
+                          </p>
+                        )}
                       {rescheduleMessage && (
                         <p role="alert" className="auth-error">
                           {rescheduleMessage}
