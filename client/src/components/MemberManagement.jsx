@@ -7,6 +7,19 @@ const TIER_LABELS = { basic: "Basic", premium: "Premium" };
 
 const emptyForm ={ name: "", email: "", tier: "basic", status: "active" };
 
+const authHeaders = () => {
+  const token = localStorage.getItem("token");
+  return { headers: { Authorization: `Bearer ${token}` } };
+};
+
+const fetchMembers = async (search) => {
+  const { data } = await axios.get(
+    `${API}/api/members?search=${encodeURIComponent(search)}`,
+    authHeaders()
+  );
+  return data;
+};
+
 export default function MemberManagement() {
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState("");
@@ -16,25 +29,28 @@ export default function MemberManagement() {
   const [successMsg, setSuccessMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const authHeaders = () => {
-    const token = localStorage.getItem("token");
-    return { headers: { Authorization: `Bearer ${token}` } };
-  };
-
+  // Refreshes the list after an edit or deactivation, keeping the current search.
   const loadMembers = async () => {
     try {
-      const { data } = await axios.get(
-        `${API}/api/members?search=${encodeURIComponent(search)}`,
-        authHeaders()
-      );
-      setMembers(data);
-    } catch (err) {
+      setMembers(await fetchMembers(search));
+    } catch {
       setError("Could not load members.");
     }
   };
 
+  // Reloads the list whenever the search text changes.
   useEffect(() => {
-    loadMembers();
+    let ignore = false;
+    fetchMembers(search)
+      .then((data) => {
+        if (!ignore) setMembers(data);
+      })
+      .catch(() => {
+        if (!ignore) setError("Could not load members.");
+      });
+    return () => {
+      ignore = true;
+    };
   }, [search]);
 
   const handleChange = (e) => {
