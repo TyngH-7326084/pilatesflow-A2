@@ -8,6 +8,16 @@ const emptyForm = { name: "", bio: "", specialties: "" };
 const emptySlotForm = { dayOfWeek: "Monday", startTime: "", endTime: "" };
 const emptyGenerateForm = { className: "", capacity: "", startDate: "", numberOfWeeks: "" };
 
+const authHeaders = () => {
+  const token = localStorage.getItem("token");
+  return { headers: { Authorization: `Bearer ${token}` } };
+};
+
+const fetchInstructors = async () => {
+  const { data } = await axios.get(`${API}/api/instructors`, authHeaders());
+  return data;
+};
+
 export default function InstructorManagement() {
   const [instructors, setInstructors] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -28,22 +38,29 @@ export default function InstructorManagement() {
   const [generateResult, setGenerateResult] = useState(null);
   const [generating, setGenerating] = useState(false);
 
-  const authHeaders = () => {
-    const token = localStorage.getItem("token");
-    return { headers: { Authorization: `Bearer ${token}` } };
-  };
-
+  // Refreshes the list after a create, update or delete (called from event handlers).
   const loadInstructors = async () => {
     try {
-      const { data } = await axios.get(`${API}/api/instructors`, authHeaders());
-      setInstructors(data);
-    } catch (err) {
+      setInstructors(await fetchInstructors());
+    } catch {
       setError("Could not load instructors.");
     }
   };
 
+  // Initial load: state is only set in the promise callbacks once the request
+  // finishes, and ignored if the component has unmounted in the meantime.
   useEffect(() => {
-    loadInstructors();
+    let ignore = false;
+    fetchInstructors()
+      .then((data) => {
+        if (!ignore) setInstructors(data);
+      })
+      .catch(() => {
+        if (!ignore) setError("Could not load instructors.");
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleChange = (e) => {
