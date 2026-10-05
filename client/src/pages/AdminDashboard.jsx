@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import InstructorManagement from "../components/InstructorManagement";
@@ -138,6 +139,9 @@ export default function AdminDashboard() {
 
         <div className="class-list-card">
           <h3 className="class-list-title">All Classes</h3>
+          <Link to="/class-board" className="btn-primary" style={{ display: "block", textAlign: "center", marginBottom: "16px", textDecoration: "none" }}>
+            Class Dashboard 
+          </Link>
           {classes.length === 0 ? (
             <p>No classes scheduled yet.</p>
           ) : (
