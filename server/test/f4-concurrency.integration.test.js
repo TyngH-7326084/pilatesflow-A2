@@ -75,6 +75,7 @@ async function seedTrial(trialNumber) {
       instructorName: "Concurrency Test Instructor",
       classDateTime: new Date("2035-01-01T09:00:00.000Z"),
       capacity: REQUESTS_PER_TRIAL,
+      status: "Published",
       createdBy: admin._id,
     },
     {
@@ -82,6 +83,7 @@ async function seedTrial(trialNumber) {
       instructorName: "Concurrency Test Instructor",
       classDateTime: new Date("2035-01-02T09:00:00.000Z"),
       capacity: TARGET_CAPACITY,
+      status: "Published",
       createdBy: admin._id,
     },
   ]);
@@ -136,8 +138,21 @@ test(
       const results = await Promise.all(operations.map((operation) => operation.run()));
       const successes = results.filter((result) => [200, 201].includes(result.status));
       const conflicts = results.filter((result) => result.status === 409);
+      const responseSummary = Object.entries(
+        results.reduce((summary, result) => {
+          const key = `${result.status}: ${result.body?.error || "success"}`;
+          summary[key] = (summary[key] || 0) + 1;
+          return summary;
+        }, {})
+      )
+        .map(([response, count]) => `${count}x ${response}`)
+        .join(", ");
 
-      assert.equal(successes.length, TARGET_CAPACITY, `trial ${trial} successes`);
+      assert.equal(
+        successes.length,
+        TARGET_CAPACITY,
+        `trial ${trial} successes; responses: ${responseSummary}`
+      );
       assert.equal(
         conflicts.length,
         REQUESTS_PER_TRIAL - TARGET_CAPACITY,

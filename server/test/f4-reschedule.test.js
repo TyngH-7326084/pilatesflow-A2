@@ -18,8 +18,9 @@ function createFixture({
   targetCapacity = 5,
   memberId = ids.member,
   bookingUser = ids.member,
-  sourceStatus = "published",
-  targetStatus = "published",
+  sourceStatus = "Published",
+  targetStatus = "Published",
+  includeStatus = true,
   sourceDate = "2030-01-01T09:00:00.000Z",
   targetDate = "2030-01-02T09:00:00.000Z",
   duplicate = false,
@@ -43,13 +44,13 @@ function createFixture({
       _id: ids.source,
       classDateTime: sourceDate,
       capacity: 10,
-      status: sourceStatus,
+      ...(includeStatus ? { status: sourceStatus } : {}),
     },
     [ids.target]: {
       _id: ids.target,
       classDateTime: targetDate,
       capacity: targetCapacity,
-      status: targetStatus,
+      ...(includeStatus ? { status: targetStatus } : {}),
     },
   };
   const Booking = {
@@ -224,7 +225,7 @@ test("past or unpublished classes and duplicate bookings are rejected", async ()
       message: "Current class has already started.",
     },
     {
-      fixture: createFixture({ targetStatus: "cancelled" }),
+      fixture: createFixture({ targetStatus: "Cancelled" }),
       message: "Destination class is not published.",
     },
     {
@@ -244,6 +245,20 @@ test("past or unpublished classes and duplicate bookings are rejected", async ()
     );
     assert.equal(fixture.booking.class, ids.source);
   }
+});
+
+test("legacy classes without a status remain bookable", async () => {
+  const fixture = createFixture({ includeStatus: false });
+
+  const result = await fixture.service.rescheduleBooking({
+    actorId: ids.member,
+    bookingId: ids.booking,
+    targetClassId: ids.target,
+  });
+
+  assert.equal(result.booking.class, ids.target);
+  assert.equal(fixture.booking.class, ids.target);
+  assert.equal(fixture.getSaveCount(), 1);
 });
 
 test("a failure after the booking update rolls the entire move back", async () => {
@@ -287,13 +302,13 @@ function createConcurrentFixture() {
       _id: ids.source,
       classDateTime: "2030-01-01T09:00:00.000Z",
       capacity: 5,
-      status: "published",
+      status: "Published",
     },
     [ids.target]: {
       _id: ids.target,
       classDateTime: "2030-01-02T09:00:00.000Z",
       capacity: 1,
-      status: "published",
+      status: "Published",
     },
   };
   let transactionQueue = Promise.resolve();
@@ -405,7 +420,7 @@ test("reschedule options exclude current, booked, past, unpublished, and full cl
     findById: async () => ({
       _id: ids.source,
       classDateTime: "2030-01-01T09:00:00.000Z",
-      status: "published",
+      status: "Published",
     }),
     find: (query) => ({
       sort: async () => {
@@ -415,14 +430,14 @@ test("reschedule options exclude current, booked, past, unpublished, and full cl
             _id: openClassId,
             className: "Open class",
             classDateTime: "2030-01-02T09:00:00.000Z",
-            status: "published",
+            status: "Published",
             capacity: 3,
           },
           {
             _id: fullClassId,
             className: "Full class",
             classDateTime: "2030-01-03T09:00:00.000Z",
-            status: "published",
+            status: "Published",
             capacity: 2,
           },
         ];
