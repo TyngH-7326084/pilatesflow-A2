@@ -71,7 +71,7 @@ async function handleTransition(req, res) {
 
     await currentState.transitionTo(classObj, targetStatus);
 
-    return res.status(200).json({ message: "State updated via pattern rules", class: classObj });
+    return res.status(200).json({ message: "State updated successfully", class: classObj });
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
