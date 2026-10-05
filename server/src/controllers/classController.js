@@ -1,5 +1,6 @@
 const Class = require("../models/Class");
 const Booking = require("../models/Booking");
+const { getClassStateInstance } = require("../patterns/ClassStates");
 
 // POST /api/classes  (Admin only)
 // US5 acceptance criteria: missing field or capacity <= 0 -> rejected, no class created.
@@ -57,4 +58,23 @@ async function getClasses(req, res) {
   }
 }
 
-module.exports = { createClass, getClasses };
+// Handles transitions using the State Design Pattern
+async function handleTransition(req, res) {
+  try {
+    const { id } = req.params;
+    const { targetStatus } = req.body;
+
+    const classObj = await Class.findById(id);
+    if (!classObj) return res.status(404).json({ error: "Class not found" });
+
+    const currentState = getClassStateInstance(classObj.status || "Draft");
+
+    await currentState.transitionTo(classObj, targetStatus);
+
+    return res.status(200).json({ message: "State updated via pattern rules", class: classObj });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+}
+
+module.exports = { createClass, getClasses, handleTransition };
