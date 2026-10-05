@@ -20,6 +20,7 @@ function createFixture({
   bookingUser = ids.member,
   sourceStatus = "Published",
   targetStatus = "Published",
+  includeStatus = true,
   sourceDate = "2030-01-01T09:00:00.000Z",
   targetDate = "2030-01-02T09:00:00.000Z",
   duplicate = false,
@@ -43,13 +44,13 @@ function createFixture({
       _id: ids.source,
       classDateTime: sourceDate,
       capacity: 10,
-      status: sourceStatus,
+      ...(includeStatus ? { status: sourceStatus } : {}),
     },
     [ids.target]: {
       _id: ids.target,
       classDateTime: targetDate,
       capacity: targetCapacity,
-      status: targetStatus,
+      ...(includeStatus ? { status: targetStatus } : {}),
     },
   };
   const Booking = {
@@ -244,6 +245,20 @@ test("past or unpublished classes and duplicate bookings are rejected", async ()
     );
     assert.equal(fixture.booking.class, ids.source);
   }
+});
+
+test("legacy classes without a status remain bookable", async () => {
+  const fixture = createFixture({ includeStatus: false });
+
+  const result = await fixture.service.rescheduleBooking({
+    actorId: ids.member,
+    bookingId: ids.booking,
+    targetClassId: ids.target,
+  });
+
+  assert.equal(result.booking.class, ids.target);
+  assert.equal(fixture.booking.class, ids.target);
+  assert.equal(fixture.getSaveCount(), 1);
 });
 
 test("a failure after the booking update rolls the entire move back", async () => {
