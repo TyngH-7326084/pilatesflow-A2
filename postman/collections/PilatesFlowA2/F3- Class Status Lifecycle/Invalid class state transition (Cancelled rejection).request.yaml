@@ -1,5 +1,5 @@
 $kind: http-request
-name: Invalid class state transition (Cancelled rejection)
+name: Invalid class state transition (Cancelled to Draft)
 description: Verifies that an admin cannot transition a class out of a Cancelled state, throwing a 400 bad request error.
 url: "{{baseUrl}}/classes/{{cancelledClassId}}/transition"
 method: POST
