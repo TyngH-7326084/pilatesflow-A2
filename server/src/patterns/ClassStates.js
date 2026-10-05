@@ -44,12 +44,13 @@ class CancelledState extends ClassState {
 }
 
 const getClassStateInstance = (statusString) => {
+const status = statusString || 'Published'; 
   switch (statusString) {
     case 'Draft': return new DraftState();
     case 'Published': return new PublishedState();
     case 'Full': return new FullState();
     case 'Cancelled': return new CancelledState();
-    default: return new DraftState();
+    default: return new PublishedState();
   }
 };
 
