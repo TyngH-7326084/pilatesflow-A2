@@ -18,8 +18,8 @@ function createFixture({
   targetCapacity = 5,
   memberId = ids.member,
   bookingUser = ids.member,
-  sourceStatus = "published",
-  targetStatus = "published",
+  sourceStatus = "Published",
+  targetStatus = "Published",
   sourceDate = "2030-01-01T09:00:00.000Z",
   targetDate = "2030-01-02T09:00:00.000Z",
   duplicate = false,
@@ -224,7 +224,7 @@ test("past or unpublished classes and duplicate bookings are rejected", async ()
       message: "Current class has already started.",
     },
     {
-      fixture: createFixture({ targetStatus: "cancelled" }),
+      fixture: createFixture({ targetStatus: "Cancelled" }),
       message: "Destination class is not published.",
     },
     {
@@ -287,13 +287,13 @@ function createConcurrentFixture() {
       _id: ids.source,
       classDateTime: "2030-01-01T09:00:00.000Z",
       capacity: 5,
-      status: "published",
+      status: "Published",
     },
     [ids.target]: {
       _id: ids.target,
       classDateTime: "2030-01-02T09:00:00.000Z",
       capacity: 1,
-      status: "published",
+      status: "Published",
     },
   };
   let transactionQueue = Promise.resolve();
@@ -405,7 +405,7 @@ test("reschedule options exclude current, booked, past, unpublished, and full cl
     findById: async () => ({
       _id: ids.source,
       classDateTime: "2030-01-01T09:00:00.000Z",
-      status: "published",
+      status: "Published",
     }),
     find: (query) => ({
       sort: async () => {
@@ -415,14 +415,14 @@ test("reschedule options exclude current, booked, past, unpublished, and full cl
             _id: openClassId,
             className: "Open class",
             classDateTime: "2030-01-02T09:00:00.000Z",
-            status: "published",
+            status: "Published",
             capacity: 3,
           },
           {
             _id: fullClassId,
             className: "Full class",
             classDateTime: "2030-01-03T09:00:00.000Z",
-            status: "published",
+            status: "Published",
             capacity: 2,
           },
         ];
