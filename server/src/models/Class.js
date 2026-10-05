@@ -34,6 +34,10 @@ const classSchema = new mongoose.Schema(
       default: 0,
       select: false,
     },
+    status: {
+      type: String,
+      enum: ["Draft", "Published", "Full", "Cancelled"],
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
