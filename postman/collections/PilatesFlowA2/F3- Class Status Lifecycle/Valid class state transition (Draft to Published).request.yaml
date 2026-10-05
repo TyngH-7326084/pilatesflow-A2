@@ -1,6 +1,6 @@
 $kind: http-request
 name: Valid class state transition (Draft to Published)
-description: Verifies that an admin can change class status from Draft to Published using the State Design Pattern.
+description: Verifies that an admin can change class status from Draft to Published using the State design pattern.
 url: "{{baseUrl}}/classes/{{classId}}/transition"
 method: POST
 body:
