@@ -5,27 +5,35 @@ import Navbar from '../components/Navbar';
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
+const getAuthConfig = () => {
+  const token = localStorage.getItem('token');
+  return { headers: { Authorization: `Bearer ${token}` } };
+};
+
+const fetchClasses = async () => {
+  const { data } = await axios.get(`${API}/api/classes`, getAuthConfig());
+  return data;
+};
+
 const ClassBoard = () => {
   const [classes, setClasses] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [draggedItem, setDraggedItem] = useState(null);
 
-  const getAuthConfig = () => {
-    const token = localStorage.getItem('token');
-    return { headers: { Authorization: `Bearer ${token}` } };
-  };
-
-  const fetchActiveClasses = async () => {
-    try {
-      const { data } = await axios.get(`${API}/api/classes`, getAuthConfig());
-      setClasses(data);
-    } catch (err) {  
-      setErrorMsg(err.response?.data?.error || err.message || "Could not fetch Class data.");
-    }
-  };
-
   useEffect(() => {
-    fetchActiveClasses();
+    let ignore = false;
+    fetchClasses()
+      .then((data) => {
+        if (!ignore) setClasses(data);
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setErrorMsg(err.response?.data?.error || err.message || "Could not fetch Class data.");
+        }
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const executeLaneTransition = async (classId, previousStatus, targetStatus) => {
@@ -73,7 +81,7 @@ const ClassBoard = () => {
               <div 
                 key={lane} 
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={() => executeLaneTransition(draggedItem.id, draggedItem.status, lane)}
+                onDrop={() => draggedItem && executeLaneTransition(draggedItem.id, draggedItem.status, lane)}
                 style={{ background: '#fcfbfe', border: '1px solid #e8e5ec', borderRadius: '12px', padding: '16px', minHeight: '500px' }}
               >
                 <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#711F71', borderBottom: '2px solid #f1eff4', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
