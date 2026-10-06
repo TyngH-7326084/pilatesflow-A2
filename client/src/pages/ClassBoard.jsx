@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
@@ -19,8 +19,8 @@ const ClassBoard = () => {
     try {
       const { data } = await axios.get(`${API}/api/classes`, getAuthConfig());
       setClasses(data);
-    } catch (err) {
-      setErrorMsg('Error downloading class data.');
+    } catch (err) {  
+      setError(err.response?.data?.error || "Could not fetch class.");
     }
   };
 
