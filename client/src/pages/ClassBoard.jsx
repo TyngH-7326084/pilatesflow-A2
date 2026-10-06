@@ -20,7 +20,7 @@ const ClassBoard = () => {
       const { data } = await axios.get(`${API}/api/classes`, getAuthConfig());
       setClasses(data);
     } catch (err) {  
-      setErrorMsg(err.response?.data?.error || "Could not fetch class.");
+      setErrorMsg(err.response?.data?.error || "Could not fetch Class.");
     }
   };
 
