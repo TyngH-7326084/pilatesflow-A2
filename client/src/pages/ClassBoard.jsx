@@ -20,7 +20,7 @@ const ClassBoard = () => {
       const { data } = await axios.get(`${API}/api/classes`, getAuthConfig());
       setClasses(data);
     } catch (err) {  
-      setErrorMsg(err.response?.data?.error || "Could not fetch Class.");
+      setErrorMsg(err.response?.data?.error || err.message || "Could not fetch Class data.");
     }
   };
 
@@ -40,9 +40,9 @@ const ClassBoard = () => {
       const updatedClass = data.class || data;
       setClasses(prev => prev.map(c => (c._id === classId || c.id === classId) ? updatedClass : c));
     } catch (err) {
-      const serverValidationMessage = err.response?.data?.error || err.response?.data?.message || 'Transition denied.';
-      setErrorMsg(`State Transition Error: ${serverValidationMessage}`);
-      setClasses(layoutRollbackCheckpoint);
+        const serverValidationMessage = err.response?.data?.error || err.response?.data?.message || err.message || "Transition failed";
+        setErrorMsg(`State Transition Error: ${serverValidationMessage}`);
+        setClasses(layoutRollbackCheckpoint);
     }
   };
 
