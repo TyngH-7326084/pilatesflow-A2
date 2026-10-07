@@ -1,0 +1,20 @@
+$kind: http-request
+name: Create open class (capacity 5)
+description: "Setup a class with spare seats, used to check waitlist rejection."
+url: "{{baseUrl}}/classes"
+method: POST
+body:
+  type: json
+  content: '{ "className": "F2 Open Class", "instructorName": "F2 Instructor", "classDateTime": "2035-01-01T09:00:00.000Z", "capacity": 5 }'
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 201", () => pm.response.to.have.status(201));
+      pm.environment.set("openClassId", pm.response.json()._id);
+    language: text/javascript
+order: 5000
+    

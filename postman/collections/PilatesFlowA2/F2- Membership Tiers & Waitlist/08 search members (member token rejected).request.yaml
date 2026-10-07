@@ -1,0 +1,15 @@
+$kind: http-request
+name: Search members (member token rejected)
+description: "NFR-F2: a non-admin token cannot list members"
+url: "{{baseUrl}}/members"
+method: GET
+autth:
+  type: bearer
+  credentials:
+    token: "{{memberToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 403", () => pm.response.to.have.status(403));
+    language: text/javascript
+order: 8000

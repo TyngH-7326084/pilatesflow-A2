@@ -1,0 +1,19 @@
+$kind: http-request
+name: Search member (admin)
+description: "US2.1: admin can search by email returns the matching member without a password hash."
+url: "{{baseUrl}}/members/search?email={{memberEmail}}"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 200", () => pm.response.to.have.status(200));
+      pm.test("finds the member", () =>
+        pm.expect(pm.response.json().map((m) => m.email)).to.include(pm.environment.get("memberEmail")));
+      pm.test("no password hash", () =>
+        pm.response.json().forEach((m) => pm.expect(m).to.not.have.property("passwordHash")));
+    language: text/javascript
+order: 7000

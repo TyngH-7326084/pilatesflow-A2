@@ -1,0 +1,18 @@
+$kind: http-request
+name: Admin sets invalid tier (rejected)
+description: "US2.4: a tier outside the allowed set returns 400"
+url: "{{baseUrl}}/members/{{memberId}}"
+method: PUT
+body: 
+  type: json
+  content: '{ "tier": "invalid" }'
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 400", () => pm.response.to.have.status(400));
+    language: text/javascript
+order: 10000

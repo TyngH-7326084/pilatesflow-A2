@@ -12,3 +12,19 @@ values:
     value: ''
   - key: instructorId
     value: ''
+  - key: memberToken
+    secret: true
+    value: ''
+  - key: holderToken
+    secret: true
+    value: ''
+  - key: memberId
+    value: ''
+  - key: memberEmail
+    value: ''
+  - key: fullClassId
+    value: ''
+  - key: openClassId
+    value: ''
+  - key: waitlistEntryId
+    value: ''

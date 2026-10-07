@@ -10,9 +10,9 @@
     "test": "npm run test:f4 && npm run test:f1 && npm run test:f2 && npm run test:nfr-f2",
     "test:f4": "node --test test/f4-reschedule.test.js test/f4-concurrency.integration.test.js",
     "test:f1": "node --test test/f1-conflict-detection.test.js test/f1-performance.test.js",
-    "test:f2": "node --test test/f2-promotion-strategy.test.js test/f2-promotion.test.js",
+    "test:f2": "node --test test/f2-promotion-strategy.test.js test/f2-promotion.test.js test/f2-members.integration.test.js test/f2-waitlist.integration.test.js",
     "test:nfr-f2": "node --test test/f2-member-search-performance.test.js"
-
+    
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

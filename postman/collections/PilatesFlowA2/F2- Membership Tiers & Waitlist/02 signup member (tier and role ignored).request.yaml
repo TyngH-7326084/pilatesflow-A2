@@ -1,0 +1,20 @@
+$kind: http-request
+name: Signup member (tier and role ignored)
+description: "NFR-F2: tier and role are ignored, so the new account is basic member."
+url: "{{baseUrl}}/auth/signup"
+method: POST
+body:
+  type: json
+  content: '{ "email": "f2member{{$timestamp}}@pf.test", "password": "Password123", "tier": "premium", "role": "admin" }'
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 201", () => pm.response.to.have.status(201));
+      pm.test("role is member, not admin", () => pm.expect(pm.response.json().user.role).to.eql("member"));
+      pm.environment.set("memberToken", pm.response.json().token);
+      pm.environment.set("memberId", pm.response.json().user.id);
+      pm.environment.set("memberEmail", pm.response.json().user.email);
+    language: text/javascript
+order: 2000

@@ -1,0 +1,17 @@
+$kind: http-request
+name: Login (admin)
+description: "Logs in as adminand stores the admin token used by this folder"
+url: "{{baseUrl}}/auth/login"
+method: POST
+body:
+  type: json
+  content: '{ "email": "admin@pilatesflow.com", "password": "AdminPass123" }'
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 200", () => pm.response.to.have.status(200));
+      pm.environment.set("token", pm.response.json().token);
+    language: text/javascript
+order: 1000

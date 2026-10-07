@@ -1,0 +1,19 @@
+$kind: http-request
+name: Create full class (capacity 1)
+description: "Creates a class with capacity 1, so that the next member to sign up will be waitlisted."
+url: "{{baseUrl}}/classes"
+method: POST
+body:
+  type: json
+  content: '{ "className": "F2 Full Class", "instructorName": "F2 Instructor", "classDateTime": "2035-01-01T09:00:00.000Z", "capacity": 1 }'
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 201", () => pm.response.to.have.status(201));
+      pm.environment.set("fullClassId", pm.response.json()._id);
+    language: text/javascript
+order: 4000
