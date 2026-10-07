@@ -3,8 +3,22 @@ const Class = require("../models/Class");
 const User = require("../models/User");
 const RescheduleBookingCommand = require("../commands/RescheduleBookingCommand");
 const { BookingService } = require("../services/BookingService");
+const PromotionService = require("../services/PromotionService");
+const Waitlist = require("../models/Waitlist");
+const promotionService = new PromotionService({ Waitlist, Booking, Class });
 
-const bookingService = new BookingService({ Booking, Class, User });
+const bookingService = new BookingService({ Booking, Class, User,
+  // US2.7: run after cancel AND reschedule commit, so both free seats
+  // go thorugh the same promotion path. 
+  afterCapacityRelease: async ({ sourceClassId }) => {
+    try {
+      await promotionService.promoteNext({ sourceClassId });
+    } catch (error) {
+      // the cancellation a;ready succeeded: a promotion failure must not turn it into an error. 
+      console.error("Promotion failed after capacity change:", error);
+    }
+  },
+ });
 
 // POST /api/bookings  (Member only, requireAuth)
 // US5 acceptance criteria: capacity check, duplicate check, success/error messaging
