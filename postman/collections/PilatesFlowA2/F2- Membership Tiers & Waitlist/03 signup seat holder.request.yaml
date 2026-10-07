@@ -1,0 +1,17 @@
+$kind: http-request
+name: Signup seat holder
+description: "Setup: second member who takes the only seat in the full class."
+url: "{{baseUrl}}/auth/signup"
+method: POST
+body:
+  type: json
+  content: '{ "email": "f2holder{{$timestamp}}@pf.test", "password": "Password123" }'
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 201", () => pm.response.to.have.status(201));
+      pm.environment.set("holderToken", pm.response.json().token);
+    language: text/javascript
+order: 3000

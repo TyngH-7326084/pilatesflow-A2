@@ -9,7 +9,8 @@ async function getMembers(req, res) {
 
   const filter = { role: "member" };
   if (search && search.trim()) {
-    const regex = new RegExp(search.trim(), "i");
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // Escape regex special chars
+    const regex = new RegExp(escaped, "i");
     filter.$or = [{ name: regex }, { email: regex }];
   }
 

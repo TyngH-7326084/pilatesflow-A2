@@ -1,0 +1,18 @@
+$kind: http-request
+name: Seat holder books full class
+description: "Setsup fills the only seat so the class is full."
+url: "{{baseUrl}}/bookings"
+method: POST
+body:
+  type: json
+  content: '{ "classId": "{{fullClassId}}" }'
+auth:
+  type: bearer
+  credentials:
+    token: "{{holderToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 201", () => pm.response.to.have.status(201));
+    language: text/javascript
+order: 6000 

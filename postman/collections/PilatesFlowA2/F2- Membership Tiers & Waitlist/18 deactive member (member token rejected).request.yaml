@@ -1,0 +1,15 @@
+$kind: http-request
+name: deactive member (member token rejected)
+description: "NFR-F2: a non-admin token cannot deactive a member"
+url: "{{baseUrl}}/members/{{memberId}}/deactivate"
+method: PATCH
+auth:
+  type: bearer
+  credentials:
+    token: "{{memberToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("returns 403", () => pm.response.to.have.status(403));
+    language: text/javascript
+order: 18000
