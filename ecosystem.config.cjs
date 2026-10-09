@@ -12,6 +12,7 @@ module.exports = {
       max_memory_restart: "300M",
       env_production: {
         NODE_ENV: "production",
+        TZ: "Australia/Brisbane", // PF-107: EC2 runs in UTC; class times must use the studio's timezone
       },
     },
   ],
