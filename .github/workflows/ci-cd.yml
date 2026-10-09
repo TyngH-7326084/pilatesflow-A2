@@ -117,6 +117,7 @@ jobs:
       APP_ROOT: ${{ vars.EC2_APP_ROOT || '/var/www/pilatesflow-a2' }}
       APP_PORT: ${{ vars.APP_PORT || '3000' }}
       PM2_HOME: /home/ec2-user/.pm2
+      RUNNER_TRACKING_ID: ""   # stop the runner from killing the pm2-managed app when the job ends
 
     steps:
       - name: Clear previous release files
