@@ -100,58 +100,36 @@ jobs:
           retention-days: 14
 
   deploy:
-    name: Deploy to two EC2 instances
+    name: Deploy to ${{ matrix.target }}
     needs: verify-and-package
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    # Runs on the self-hosted runners installed on each EC2 instance (Tutorial 6),
+    # so no inbound SSH from GitHub is needed.
+    runs-on: [self-hosted, "${{ matrix.target }}"]
     timeout-minutes: 15
     environment: production
+    strategy:
+      fail-fast: true
+      max-parallel: 1 # rolling deploy: one instance at a time so the ALB always has a healthy target
+      matrix:
+        target: [pf-a2-1, pf-a2-2]
+    env:
+      APP_ROOT: ${{ vars.EC2_APP_ROOT || '/var/www/pilatesflow-a2' }}
+      APP_PORT: ${{ vars.APP_PORT || '3000' }}
+      PM2_HOME: /home/ec2-user/.pm2
 
     steps:
+      - name: Clear previous release files
+        run: rm -rf artifact
+
       - name: Download tested release
         uses: actions/download-artifact@v5
         with:
           name: pilatesflow-${{ github.sha }}
           path: artifact
 
-      - name: Configure SSH
-        env:
-          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+      - name: Deploy and health-check this target
         shell: bash
         run: |
-          test -n "$EC2_SSH_PRIVATE_KEY"
-          test -n "$EC2_KNOWN_HOSTS"
-          install -d -m 700 "$HOME/.ssh"
-          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
-          printf '%s\n' "$EC2_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
-
-      - name: Deploy and health-check both targets
-        env:
-          EC2_HOSTS: ${{ secrets.EC2_HOSTS }}
-          EC2_SSH_USER: ${{ secrets.EC2_SSH_USER }}
-          APP_ROOT: ${{ vars.EC2_APP_ROOT || '/var/www/pilatesflow-a2' }}
-          APP_PORT: ${{ vars.APP_PORT || '3000' }}
-        shell: bash
-        run: |
-          test -n "$EC2_HOSTS"
-          test -n "$EC2_SSH_USER"
-
-          IFS=',' read -r -a hosts <<< "$EC2_HOSTS"
-          if [[ "${#hosts[@]}" -ne 2 ]]; then
-            echo "EC2_HOSTS must contain exactly two comma-separated hosts." >&2
-            exit 1
-          fi
-
-          for host in "${hosts[@]}"; do
-            host="${host//[[:space:]]/}"
-            scp "artifact/pilatesflow-${GITHUB_SHA}.tar.gz" \
-              "$EC2_SSH_USER@$host:/tmp/pilatesflow-${GITHUB_SHA}.tar.gz"
-            ssh "$EC2_SSH_USER@$host" \
-              "bash -s -- '$GITHUB_SHA' '$APP_ROOT' '$APP_PORT'" \
-              < artifact/deploy-ec2.sh
-          done
-
-      - name: Record deployed revision
-        run: echo "Deployed ${GITHUB_SHA} to both EC2 targets."
+          cp "artifact/pilatesflow-${GITHUB_SHA}.tar.gz" "/tmp/pilatesflow-${GITHUB_SHA}.tar.gz"
+          bash artifact/deploy-ec2.sh "$GITHUB_SHA" "$APP_ROOT" "$APP_PORT"
