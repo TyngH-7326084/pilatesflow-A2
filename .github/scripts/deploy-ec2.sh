@@ -4,6 +4,7 @@ set -euo pipefail
 revision="${1:?revision is required}"
 app_root="${2:?application root is required}"
 app_port="${3:?application port is required}"
+app_name="pilatesflow-a2" # must match "name" in ecosystem.config.cjs
 
 if [[ ! "$revision" =~ ^[0-9a-f]{40}$ ]]; then
   echo "Invalid Git revision." >&2
@@ -50,14 +51,22 @@ ln -sfn "$shared_env" "$release_dir/server/.env"
 previous_release="$(readlink "$current_link" 2>/dev/null || true)"
 ln -sfn "$release_dir" "$current_link"
 
+# pm2 keeps a running app's original script path and working directory on reload,
+# so a reload would keep serving the old release. Delete and start fresh instead
+# so the process runs from the new release directory.
+start_release() {
+  pm2 delete "$app_name" >/dev/null 2>&1 || true
+  pm2 start "$1/ecosystem.config.cjs" --env production --update-env
+}
+
 rollback() {
   if [[ -n "$previous_release" && -f "$previous_release/ecosystem.config.cjs" ]]; then
     ln -sfn "$previous_release" "$current_link"
-    pm2 startOrReload "$previous_release/ecosystem.config.cjs" --env production --update-env || true
+    start_release "$previous_release" || true
   fi
 }
 
-if ! pm2 startOrReload "$release_dir/ecosystem.config.cjs" --env production --update-env; then
+if ! start_release "$release_dir"; then
   rollback
   exit 1
 fi
