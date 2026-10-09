@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import InstructorManagement from "../components/InstructorManagement";
 import MemberManagement from "../components/MemberManagement";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API = import.meta.env.VITE_API_URL || "";
 
 const fetchClasses = async () => {
   const { data } = await axios.get(`${API}/api/classes`);
