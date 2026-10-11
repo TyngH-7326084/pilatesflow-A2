@@ -1,0 +1,45 @@
+Test start: 2026-10-11 10:01:25 AEST
+This is ApacheBench, Version 2.3 <$Revision: 1923142 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking PilateFlow-A2-1904168369.ap-southeast-2.elb.amazonaws.com (be patient)
+
+
+Server Software:        nginx/1.30.5
+Server Hostname:        PilateFlow-A2-1904168369.ap-southeast-2.elb.amazonaws.com
+Server Port:            80
+
+Document Path:          /api/bookings/6acad1b338ca4f18ac73144e/reschedule-options
+Document Length:        Variable
+
+Concurrency Level:      100
+Time taken for tests:   45.183 seconds
+Complete requests:      842
+Failed requests:        0
+Keep-Alive requests:    842
+Total transferred:      1142180 bytes
+HTML transferred:       862208 bytes
+Requests per second:    18.64 [#/sec] (mean)
+Time per request:       5366.211 [ms] (mean)
+Time per request:       53.662 [ms] (mean, across all concurrent requests)
+Transfer rate:          24.69 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    3   9.3      0      39
+Processing:    49 5041 1339.2   5010    9050
+Waiting:       45 5040 1339.3   5010    9050
+Total:         49 5044 1339.1   5019    9050
+
+Percentage of the requests served within a certain time (ms)
+  50%   5019
+  66%   5947
+  75%   6000
+  80%   6023
+  90%   6086
+  95%   7036
+  98%   8003
+  99%   8045
+ 100%   9050 (longest request)
+Test end: 2026-10-11 10:02:11 AEST
